@@ -15,14 +15,15 @@ typedef enum hrac{
     p4
 } HRAC_ENUM;
 
-typedef struct suradnice{
+typedef struct coordinates{
     int surA;
     int surB;
 } SUR;
 
 typedef struct{
-    struct suradnice surky;
-
+    struct coordinates coords;
+    int traveled;
+    bool active;
 } PAWN;
 
 SUR gameArea[40] = {
@@ -68,31 +69,10 @@ SUR gameArea[40] = {
         {1, 4},
 };
 
-int playerA[4];
-int playerB[4];
-int playerC[4];
-int playerD[4];
-
-int drawArea[SIZE][SIZE] = {
-        {41, 42, 0, 0, 1, 2, 3, 0, 0, 51, 52},
-        {43, 44, 0, 0, 40, 55, 4, 0, 0, 53, 54},
-        {0, 0, 0, 0, 39, 56, 5, 0, 0, 0, 0},
-        {0, 0, 0, 0, 38, 57, 6, 0, 0, 0, 0},
-        {33, 34, 35, 36, 37, 58, 7, 8, 9, 10, 11},
-        {32, 45, 46, 47, 48, 0, 68, 67, 66, 65, 12},
-        {31, 30, 29, 28, 27, 78, 17, 16, 15, 14, 13},
-        {0, 0, 0, 0, 26, 77, 18, 0, 0, 0, 0},
-        {0, 0, 0, 0, 25, 76, 19, 0, 0, 0, 0},
-        {71, 72, 0, 0, 24, 75, 20, 0, 0, 61, 62},
-        {73, 74, 0, 0, 23, 22, 21, 0, 0, 63, 64},
-};
-
-
-
-int diceroll()
-{
-    return 1 + rand() % 6;
-}
+PAWN playerA[4];
+PAWN playerB[4];
+PAWN playerC[4];
+PAWN playerD[4];
 
 void init()
 {
@@ -104,16 +84,25 @@ void init()
     init_pair(3,COLOR_BLUE, COLOR_BLACK);
     init_pair(4,COLOR_RED, COLOR_BLACK);
 
-//    for (int i = 0; i < strlen(gameArea); ++i) {
-//        gameArea[i] = 0;
-//    }
+    playerA[0] = (PAWN){{0,0},0,false};
+    playerA[1] = (PAWN){{0,2},0,false};
+    playerA[2] = (PAWN){{1,0},0,false} ;
+    playerA[3] = (PAWN){{1,2},0,false};
 
-    for (int i = 0; i < 4; ++i) {
-        playerA[i] = 1;
-        playerB[i] = 2;
-        playerC[i] = 3;
-        playerD[i] = 4;
-    }
+    playerB[0] = (PAWN){{0,18},0,false};
+    playerB[1] = (PAWN){{0,20},0,false};
+    playerB[2] = (PAWN){{1,18},0,false};
+    playerB[3] = (PAWN){{1,20},0,false};
+
+    playerC[0] = (PAWN){{9,0},0,false};
+    playerC[1] = (PAWN){{9,2},0,false};
+    playerC[2] = (PAWN){{10,0},0,false};
+    playerC[3] = (PAWN){{10,2},0,false};
+
+    playerD[0] = (PAWN){{9,18},0,false};
+    playerD[1] = (PAWN){{9,20},0,false};
+    playerD[2] = (PAWN){{10,18},0,false};
+    playerD[3] = (PAWN){{10,20},0,false};
 }
 
 void draw()
@@ -180,7 +169,7 @@ void draw()
 int main()
 {
 
-#define END false
+    bool end = false;
     srand(time(null));
 
     init();
@@ -200,11 +189,31 @@ int main()
     int panacik;
     int generovaneCislo;
 
-    while(!END) {
+    move(11,0);
+
+    while(!end) {
         generovaneCislo = 1 + rand() % (6);
 
-        scanw("%d", panacik);
+        mvprintw(11,0,"Hodil si cislo: %d \n", generovaneCislo);
 
+        bool playerAhasActive = false;
+        for (int i = 0; i < 4; ++i) {
+            if (playerA[i].active) {
+                printw("%d", i+1);
+                playerAhasActive = true;
+            }
+        }
+        printw("\n");
+
+        if (playerAhasActive) {
+            mvprintw(13,0,"Zadaj cislo panacika:");
+            scanw("%d",&panacik);
+
+            if (playerA[panacik-1].active) {
+                playerA[panacik-1].traveled += generovaneCislo;
+                playerA[panacik-1].coords = gameArea[33+generovaneCislo];
+            }
+        }
     }
 
 
@@ -213,7 +222,6 @@ int main()
 
     getch();
     endwin();
-#undef END
     return 0;
 }
 
