@@ -1,3 +1,4 @@
+#include "cloveceLogic.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -11,117 +12,110 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define null NULL
-#define SIZE 11
+int main(int argc, char *argv[]) {
 
-typedef enum hrac{
-    p1,
-    p2,
-    p3,
-    p4
-} HRAC_ENUM;
+    Data gameData;
 
-typedef struct coordinates{
-    int surA;
-    int surB;
-} SUR;
+    int sockfd, newsockfd;
+    socklen_t cli_len;
+    struct sockaddr_in serv_addr, cli_addr;
+    int n;
+    //char buffer[256];
+    Data *dataToSend;
 
-typedef struct{
-    struct coordinates coords;
-    int traveled;
-    bool active;
-} PAWN;
+    if (argc < 2) {
+        fprintf(stderr, "usage %s port\n", argv[0]);
+        return 1;
+    }
 
-typedef struct data {
-    PAWN playerOne[4];
-    PAWN playerTwo[4];
-    PAWN playerThree[4];
-    PAWN playerFour[4];
-} DATA;
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(atoi(argv[1]));
 
-SUR gameArea[40] = {
-        {0, 4},
-        {0, 5},
-        {0, 6},
-        {1, 6},
-        {2, 6},
-        {3, 6},
-        {4, 6},
-        {4, 7},
-        {4, 8},
-        {4, 9},
-        {4, 10},
-        {5, 10},
-        {6, 10},
-        {6, 9},
-        {6, 8},
-        {6, 7},
-        {6, 6},
-        {7, 6},
-        {8, 6},
-        {9, 6},
-        {10, 6},
-        {10, 5},
-        {10, 4},
-        {9, 4},
-        {8, 4},
-        {7, 4},
-        {6, 4},
-        {6, 3},
-        {6, 2},
-        {6, 1},
-        {6, 0},
-        {5, 0},
-        {4, 0},
-        {4, 1},
-        {4, 2},
-        {4, 3},
-        {4, 4},
-        {3, 4},
-        {2, 4},
-        {1, 4},
-};
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Error creating socket");
+        return 1;
+    }
 
-PAWN playerA[4];
-PAWN playerB[4];
-PAWN playerC[4];
-PAWN playerD[4];
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Error binding socket address");
+        return 2;
+    }
 
-void init(DATA *data)
+    listen(sockfd, 5);
+    cli_len = sizeof(cli_addr);
+
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_len);
+    if (newsockfd < 0) {
+        perror("ERROR on accept");
+        return 3;
+    }
+
+
+
+    //bzero(dataToSend->buffer, 256);
+    //n = read(newsockfd, dataToSend, 255);
+//    if (n < 0) {
+//        perror("Error reading from socket");
+//        return 4;
+//    }
+    //printf("Here is the message: %s\n", dataToSend->buffer);
+
+    //const char *msg = "I got your message";
+
+    //void *gamedata = (void *)&gameData;
+
+    startGame(&gameData);
+    n = write(newsockfd, &gameData, sizeof(Data));
+    if (n < 0) {
+        perror("Error writing to socket");
+        return 5;
+    }
+
+    close(newsockfd);
+    close(sockfd);
+}
+
+void init(Data *data)
 {
-    //initscr();
-
-    //start_color();
+    /*
+    initscr();
+    start_color();
     init_pair(1,COLOR_YELLOW, COLOR_BLACK);
     init_pair(2,COLOR_GREEN, COLOR_BLACK);
     init_pair(3,COLOR_BLUE, COLOR_BLACK);
     init_pair(4,COLOR_RED, COLOR_BLACK);
+    */
 
-    *data = (DATA){
+    *data = (Data) {
+        {
             {
-                (PAWN){{0,0},0,false},
-                (PAWN){{0,2},0,false},
-                (PAWN){{1,0},0,false},
-                (PAWN){{1,2},0,false}
+                (Pawn) {playerPos[0][0][0], 0, '1', false},
+                (Pawn) {playerPos[0][0][1], 0, '2', false},
+                (Pawn) {playerPos[0][0][2], 0, '3', false},
+                (Pawn) {playerPos[0][0][3], 0, '4', false}
             },
             {
-                (PAWN){{0,18},0,false},
-                (PAWN){{0,20},0,false},
-                (PAWN){{1,18},0,false},
-                (PAWN){{1,20},0,false}
+                (Pawn) {playerPos[1][0][0], 0, '1', false},
+                (Pawn) {playerPos[1][0][1], 0, '2', false},
+                (Pawn) {playerPos[1][0][2], 0, '3', false},
+                (Pawn) {playerPos[1][0][3], 0, '4', false}
             },
             {
-                (PAWN){{9,0},0,false},
-                (PAWN){{9,2},0,false},
-                (PAWN){{10,0},0,false},
-                (PAWN){{10,2},0,false}
+                (Pawn) {playerPos[2][0][0], 0, '1', false},
+                (Pawn) {playerPos[2][0][1], 0, '2', false},
+                (Pawn) {playerPos[2][0][2], 0, '3', false},
+                (Pawn) {playerPos[2][0][3], 0, '4', false}
             },
             {
-                (PAWN){{9,18},0,false},
-                (PAWN){{9,20},0,false},
-                (PAWN){{10,18},0,false},
-                (PAWN){{10,20},0,false}
-            }
+                (Pawn) {playerPos[3][0][0], 0, '1', false},
+                (Pawn) {playerPos[3][0][1], 0, '2', false},
+                (Pawn) {playerPos[3][0][2], 0, '3', false},
+                (Pawn) {playerPos[3][0][3], 0, '4', false}
+             }
+        }
     };
 }
 
@@ -185,12 +179,12 @@ void draw()
     refresh();
 }
 
-void startGame(DATA *gameData) {
-    srand(time(null));
+void startGame(Data *gameData) {
+    srand(time(NULL));
     init(gameData);
 }
 
-int gameLogic(DATA *gameData)
+int gameLogic(Data *gameData)
 {
 
     bool end = false;
@@ -199,14 +193,14 @@ int gameLogic(DATA *gameData)
     int generovaneCislo;
     move(11,0);
 
-    while(!end) {
+    /*while(!end) {
         generovaneCislo = 1 + rand() % (6);
 
         mvprintw(11,0,"Hodil si cislo: %d \n", generovaneCislo);
 
         bool playerAhasActive = false;
         for (int i = 0; i < 4; ++i) {
-            if (playerA[i].active) {
+            if (playerA[i].isActive) {
                 printw("%d", i+1);
                 playerAhasActive = true;
             }
@@ -217,87 +211,15 @@ int gameLogic(DATA *gameData)
             mvprintw(13,0,"Zadaj cislo panacika:");
             scanw("%d",&panacik);
 
-            if (playerA[panacik-1].active) {
-                playerA[panacik-1].traveled += generovaneCislo;
-                playerA[panacik-1].coords = gameArea[33+generovaneCislo];
+            if (playerA[panacik-1].isActive) {
+                playerA[panacik-1].travelled += generovaneCislo;
+                playerA[panacik-1].pos = gameArea[33+generovaneCislo];
                 end = true;
             }
         }
-    }
+    }*/
 
     getch();
     endwin();
     return 0;
 }
-
-
-int main(int argc, char *argv[]) {
-
-    DATA gameData;
-
-    int sockfd, newsockfd;
-    socklen_t cli_len;
-    struct sockaddr_in serv_addr, cli_addr;
-    int n;
-    //char buffer[256];
-    DATA *dataToSend;
-
-    if (argc < 2) {
-        fprintf(stderr, "usage %s port\n", argv[0]);
-        return 1;
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(atoi(argv[1]));
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("Error creating socket");
-        return 1;
-    }
-
-    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Error binding socket address");
-        return 2;
-    }
-
-    listen(sockfd, 5);
-    cli_len = sizeof(cli_addr);
-
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_len);
-    if (newsockfd < 0) {
-        perror("ERROR on accept");
-        return 3;
-    }
-
-
-
-    //bzero(dataToSend->buffer, 256);
-    //n = read(newsockfd, dataToSend, 255);
-//    if (n < 0) {
-//        perror("Error reading from socket");
-//        return 4;
-//    }
-    //printf("Here is the message: %s\n", dataToSend->buffer);
-
-    //const char *msg = "I got your message";
-
-    //void *data = (void *)&gameData;
-
-    startGame(&gameData);
-    n = write(newsockfd, &gameData, sizeof(DATA));
-    if (n < 0) {
-        perror("Error writing to socket");
-        return 5;
-    }
-
-    while(){
-
-    }
-
-    close(newsockfd);
-    close(sockfd);
-}
-
