@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cloveceLogic.h"
+#include <pthread.h>
 
 void init(Data *data)
 {
@@ -117,13 +118,47 @@ void startGame(Data *gameData) {
     init(gameData);
 }
 
-int gameLogic(Data *gameData)
-{
+void* game(void *args) {
 
+    GAME_DATA * data = (GAME_DATA *) args;
     bool end = false;
 
-    int panacik;
-    int generovaneCislo;
+    int currentPlayer = 1;
+
+    while(data->endGame) {
+
+        pthread_mutex_lock(data->mutex);
+        int panacik;
+        int generovaneCislo = 1 + rand() % 6;
+        currentPlayer++;
+
+
+        if (currentPlayer > data->numberOfPlayers) {
+            currentPlayer = 1;
+        }
+
+        data->whosTurn = currentPlayer;
+
+        sprintf(data->option, "%d", generovaneCislo);
+
+        panacik = write(data->newsocfd, data, sizeof(GAME_DATA));
+        if (panacik < 0) {
+            perror("Error writing to socket");
+        }
+
+        pthread_cond_broadcast(data->giveMove);
+        pthread_mutex_unlock(data->mutex);
+
+
+    }
+
+
+
+
+
+
+
+
     move(11,0);
 
     /*while(!end) {
@@ -157,22 +192,57 @@ int gameLogic(Data *gameData)
     return 0;
 }
 
+void* playerLogic(void *args){
+
+    GAME_DATA * data = (GAME_DATA *) args;
+
+    while(data->endGame) {
+        int n;
+        n = write(data->newsocfd, &data->playerData, sizeof(GAME_DATA));
+        if (n < 0) {
+            perror("Error writing to socket");
+            //return 5;
+        }
+
+        pthread_mutex_lock(data->mutex);
+
+        while(data->whosTurn != data->playerId) {
+            pthread_cond_wait(data->giveMove, data->mutex);
+        }
+
+        int msg;
+        while(atoi(data->option) == 0) {
+            n = read(data->newsocfd, &data->option, 255);
+        }
+
+        pthread_cond_signal(data->doMove);
+        pthread_mutex_unlock(data->mutex);
+
+    }
+    return NULL;
+}
+
 
 int main(int argc, char *argv[]) {
 
-    Data gameData;
+    Data playerData;
 
-    int sockfd, newsockfd;
-    socklen_t cli_len;
-    struct sockaddr_in serv_addr, cli_addr;
+    int sockfd;
+    struct sockaddr_in serv_addr;
     int n;
     //char buffer[256];
-    Data *dataToSend;
+    //Data *dataToSend;
 
-    if (argc < 2) {
+    if (argc < 3) {
         fprintf(stderr, "usage %s port\n", argv[0]);
         return 1;
     }
+
+    int toConnect = atoi(argv[2]);
+    int connected = 0;
+    int newsockfd[toConnect];
+    struct sockaddr_in cli_addr[toConnect];
+    socklen_t cli_len[toConnect];
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -190,27 +260,64 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    listen(sockfd, 5);
-    cli_len = sizeof(cli_addr);
+    listen(sockfd, toConnect);
 
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_len);
-    if (newsockfd < 0) {
-        perror("ERROR on accept");
-        return 3;
+    pthread_t gameLogic;
+    pthread_t playerThread[toConnect];
+    pthread_mutex_t mutex;
+    pthread_cond_t giveMove, doMove;
+
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&doMove, NULL);
+    pthread_cond_init(&giveMove, NULL);
+
+    while(connected < toConnect) {
+        cli_len[connected] = sizeof(cli_addr[connected]);
+        newsockfd[connected] = accept(sockfd, (struct sockaddr *) &cli_addr[connected], &cli_len[connected]);
+        if (newsockfd[connected] < 0) {
+            perror("ERROR on accept");
+            return 3;
+        } else {
+            connected++;
+        }
     }
 
-    startGame(&gameData);
-    n = write(newsockfd, &gameData, sizeof(Data));
-    if (n < 0) {
-        perror("Error writing to socket");
-        return 5;
+    startGame(&playerData);
+
+    GAME_DATA gameData[toConnect];
+
+    int firstPlayer = 0;
+
+
+    for (int i = 0; i < connected; ++i) {
+        gameData[i].playerData = playerData;
+        gameData[i].playerId = i;
+        gameData[i].newsocfd = newsockfd[i];
+        gameData[i].endGame = false;
+        gameData[i].doMove = &doMove;
+        gameData[i].giveMove = &giveMove;
+        gameData[i].mutex = &mutex;
+        gameData[i].whosTurn = firstPlayer;
+        gameData[i].numberOfPlayers = connected;
+        pthread_create(&playerThread[i], NULL, &playerLogic, &gameData);
     }
 
-    while(){
+    pthread_create(&gameLogic, NULL, &game, &gameData);
+
+
+    mvprintw(13,0,"Pripojili sa %d hraci \n", connected);
+    for (int i = 0; i < connected; ++i) {
 
     }
 
-    close(newsockfd);
+    for (int i = 0; i < connected; ++i) {
+        close(newsockfd[i]);
+        pthread_join(playerThread[i], NULL);
+    }
+    pthread_join(gameLogic, NULL);
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&doMove);
+    pthread_cond_destroy(&giveMove);
     close(sockfd);
 }
 

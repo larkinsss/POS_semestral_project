@@ -6,6 +6,7 @@
 #define POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
 
 #include <stdbool.h>
+#include <pthread.h>
 
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
 const int MAX_PLAYER_COUNT = 4;
@@ -35,9 +36,22 @@ typedef struct gamepawn {
 /**
  * Game Data
  */
-typedef struct gamedata {
+typedef struct playerData {
     Pawn player[4][4];
 } Data;
+
+typedef struct gameData {
+    int newsocfd;
+    Data playerData;
+    int playerId;
+    volatile bool endGame;
+    pthread_cond_t *doMove;
+    pthread_cond_t *giveMove;
+    pthread_mutex_t *mutex;
+    int whosTurn;
+    char *option;
+    int numberOfPlayers;
+} GAME_DATA;
 
 /**
  * Coordinates for each tile in the active game area.
