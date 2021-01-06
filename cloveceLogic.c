@@ -121,14 +121,19 @@ void startGame(Data *gameData) {
 void* game(void *args) {
 
     GAME_DATA * data = (GAME_DATA *) args;
-    bool end = false;
+    bool itsGameTime = false;
 
     int currentPlayer = 1;
 
-    while(data->endGame) {
+    while(!data->endGame) {
 
         pthread_mutex_lock(data->mutex);
-        int panacik;
+
+        while (data->whosTurn == 0) {
+            pthread_cond_wait(data->doMove,data->mutex);
+        }
+
+        int panacik = 13548616;
         int generovaneCislo = 1 + rand() % 6;
         currentPlayer++;
 
@@ -195,25 +200,29 @@ void* game(void *args) {
 void* playerLogic(void *args){
 
     GAME_DATA * data = (GAME_DATA *) args;
+    DATA_FOR_PLAYER dataToSend = (DATA_FOR_PLAYER){data->playerData,data->playerId, data->endGame, data->whosTurn, data->option, data->numberOfPlayers };
 
-    while(data->endGame) {
-        int n;
-        n = write(data->newsocfd, &data->playerData, sizeof(GAME_DATA));
+
+    int n;
+
+    while(!data->endGame) {
+
+        pthread_mutex_lock(data->mutex);
+
+        n = write(data->newsocfd, &dataToSend, sizeof(DATA_FOR_PLAYER));
         if (n < 0) {
             perror("Error writing to socket");
             //return 5;
         }
-
-        pthread_mutex_lock(data->mutex);
 
         while(data->whosTurn != data->playerId) {
             pthread_cond_wait(data->giveMove, data->mutex);
         }
 
         int msg;
-        while(atoi(data->option) == 0) {
-            n = read(data->newsocfd, &data->option, 255);
-        }
+        //while(atoi(data->option) == 0) {
+        n = read(data->newsocfd, &data->option, 255);
+        //}
 
         pthread_cond_signal(data->doMove);
         pthread_mutex_unlock(data->mutex);
@@ -288,10 +297,9 @@ int main(int argc, char *argv[]) {
 
     int firstPlayer = 0;
 
-
     for (int i = 0; i < connected; ++i) {
         gameData[i].playerData = playerData;
-        gameData[i].playerId = i;
+        gameData[i].playerId = i+1;
         gameData[i].newsocfd = newsockfd[i];
         gameData[i].endGame = false;
         gameData[i].doMove = &doMove;
@@ -304,20 +312,18 @@ int main(int argc, char *argv[]) {
 
     pthread_create(&gameLogic, NULL, &game, &gameData);
 
-
     mvprintw(13,0,"Pripojili sa %d hraci \n", connected);
-    for (int i = 0; i < connected; ++i) {
-
-    }
 
     for (int i = 0; i < connected; ++i) {
-        close(newsockfd[i]);
         pthread_join(playerThread[i], NULL);
     }
     pthread_join(gameLogic, NULL);
     pthread_mutex_destroy(&mutex);
     pthread_cond_destroy(&doMove);
     pthread_cond_destroy(&giveMove);
+    for (int i = 0; i < connected; ++i) {
+        close(newsockfd[i]);
+    }
     close(sockfd);
 }
 
