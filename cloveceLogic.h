@@ -8,7 +8,25 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#define null NULL
+#define Mutex pthread_mutex_t
+#define mutex_init pthread_mutex_init
+#define mutex_lock pthread_mutex_lock
+#define mutex_unlock pthread_mutex_unlock
+#define mutex_destroy pthread_mutex_destroy
+#define Cond pthread_cond_t
+#define cond_init pthread_cond_init
+#define cond_wait pthread_cond_wait
+#define cond_signal pthread_cond_signal
+#define cond_broadcast pthread_cond_broadcast
+#define cond_destroy pthread_cond_destroy
+#define Thread pthread_t
+#define thread_create pthread_create
+#define thread_join pthread_join
+
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
+enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN };
+enum PawnPosition { START, GAME_AREA, END };
 const int MAX_PLAYER_COUNT = 4;
 const int PAWN_COUNT = 4;
 const int SPACING = 2;
@@ -34,30 +52,46 @@ typedef struct gamepawn {
 } Pawn;
 
 /**
- * Game Data
+ * Player Data
  */
 typedef struct playerData {
+    int count;
+    enum Player activePlayer;
+    int pawnsOnEnd[4];
     Pawn player[4][4];
-} Data;
+} PlayerData;
 
-typedef struct gameData {
-    int newsocfd;
-    Data playerData;
+typedef struct {
+    PlayerData* players;
+    bool end;
+
+    socklen_t clSockLen[2]; // TODO
+    int clSockFD[2];
+    int svSockFD;
+
+    Mutex* mutex;
+    Cond* wakeServer;
+    Cond* wakeClient;
+} ThreadData;
+
+typedef struct {
+
+} GameData;
+
+typedef struct {
+    PlayerData playerData;
     int playerId;
     volatile bool endGame;
-    pthread_cond_t *doMove;
-    pthread_cond_t *giveMove;
-    pthread_mutex_t *mutex;
     int whosTurn;
     char *option;
     int numberOfPlayers;
-} GAME_DATA;
+} OldgameData;
 
 /**
- * Coordinates for each tile in the active game area.
+ * Coordinates for each tile in the active gameThread area.
  * Tiles are indexed 0 -> 39 with 0 being the leftmost tile at the top moving to the right
  */
-const Position gameArea[40] = {
+const Position gamePos[40] = {
         {0, 4},
         {0, 5},
         {0, 6},
@@ -101,7 +135,7 @@ const Position gameArea[40] = {
 };
 
 /**
- * Coordinates for each player area in the game for all players.
+ * Coordinates for each player area in the gameThread for all players.
  * [playerIndex][areaIndex][tileIndex]
  * \playerIndex index of a player 0 -> 3
  * \areaIndex index of an area 0 -> 1 where 0 is startingArea and 1 is Home or ending area
@@ -126,9 +160,14 @@ const Position playerPos[4][2][4] = {
         }
 };
 
-void init(Data *data);
-void startGame(Data *gameData);
-int gameLogic(Data *gameData);
+Pawn* pawnsGameArea[40];
+Pawn* pawnsEndArea[4][4];
+
+void init(PlayerData *data);
+void startGame(PlayerData *data);
+int gameLogic(PlayerData *gameData);
 void draw();
+void* gameThread(void *args);
+void* playerThread(void *args);
 
 #endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
