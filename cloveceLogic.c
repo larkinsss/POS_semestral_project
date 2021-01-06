@@ -60,7 +60,9 @@ int rollDie() {
 }
 
 void nextPlayer(PlayerData* data) {
+    printf("Player change from %d", data->activePlayer);
     data->activePlayer = data->activePlayer <= 1 ? 0 : data->activePlayer + 1;
+    printf("to %d\n", data->activePlayer);
 }
 
 bool checkPawns(PlayerData* data)
@@ -102,15 +104,8 @@ void* gameThread(void *args)
     char msg[256];
 
     // First time init
-
     data->players->activePlayer = PLAYER_1;
     sendDie(data);
-    /*die = rollDie();
-    sprintf(msg, "You rolled a %d", die);
-    n = write(data->clSockFD[PLAYER_1], msg, strlen(msg));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }*/
     data->players->activePlayer = PLAYER_2;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
@@ -170,8 +165,17 @@ void* playerThread(void *args)
     enum Player id = p++;
     printf("Player %d commence!\n", id);
 
-    for (int i = 0; i < 2; ++i) { // TODO condition
+    GAME_DATA * data = (GAME_DATA *) args;
+    DATA_FOR_PLAYER dataToSend = (DATA_FOR_PLAYER){data->playerData,data->playerId, data->endGame, data->whosTurn, data->option, data->numberOfPlayers };
+
+    for (int i = 0; i < 2; ++i) { // TODO condition while(!data->end)
         mutex_lock(data->mutex);
+
+        n = write(data->clSockFD[id], &dataToSend, sizeof(DATA_FOR_PLAYER));
+        if (n < 0) {
+            perror("Error writing to socket");
+            //return 5;
+        }
 
         while(data->players->activePlayer != id) {
             cond_wait(data->wakeClient, data->mutex);
@@ -182,6 +186,9 @@ void* playerThread(void *args)
         }
 
         printf("Player %d woke up!\n", id);
+
+        //while(atoi(data->option) == 0) {
+        //n = read(data->clSockFD[data->players->activePlayer], &data->option, 255);
 
         nextPlayer(data->players);
         printf("Player %d is next!\n", data->players->activePlayer);
@@ -272,7 +279,6 @@ int main(int argc, char *argv[])
 
     init(&playerData); // TODO
 
-    // TODO neviem preco playerThread sa spusti skor nez gameThread
     thread_create(&threadServer, null, &gameThread, &thData);
     for (int i = 0; i < playerCount; ++i) {
         thread_create(&threadPlayer[i], null, &playerThread, &thData);
@@ -282,7 +288,6 @@ int main(int argc, char *argv[])
 
     thread_join(threadServer, NULL);
     for (int i = 0; i < playerCount; ++i) {
-        printf("Kicking %d\n", i);
         thread_join(threadPlayer[i], NULL);
     }
 
