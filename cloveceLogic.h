@@ -32,6 +32,11 @@ const int PAWN_COUNT = 4;
 const int SPACING = 2;
 const int SIZE = 11;
 
+typedef struct {
+    enum Command code;
+    size_t size;
+} Descriptor;
+
 /**
  * Stores the y, x coordinates
  */
@@ -88,7 +93,7 @@ typedef struct {
 } OldgameData;
 
 typedef struct dataForPlayer {
-    Data playerData;
+    PlayerData playerData;
     int playerId;
     volatile bool endGame;
     int whosTurn;
