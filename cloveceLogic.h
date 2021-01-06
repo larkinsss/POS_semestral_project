@@ -87,6 +87,15 @@ typedef struct {
     int numberOfPlayers;
 } OldgameData;
 
+typedef struct dataForPlayer {
+    Data playerData;
+    int playerId;
+    volatile bool endGame;
+    int whosTurn;
+    char *option;
+    int numberOfPlayers;
+} DATA_FOR_PLAYER;
+
 /**
  * Coordinates for each tile in the active gameThread area.
  * Tiles are indexed 0 -> 39 with 0 being the leftmost tile at the top moving to the right
