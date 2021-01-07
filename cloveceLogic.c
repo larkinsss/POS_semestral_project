@@ -115,8 +115,8 @@ void* gameThread(void *args)
     ThreadData *data = (ThreadData *) args;
     mutex_lock(data->mutex);
     printf("Server init\n");
-    startGame(data);
-    sleep(5);
+//    startGame(data);
+//    sleep(5);
 
     int n = 0;
     int die = 0;
@@ -124,8 +124,6 @@ void* gameThread(void *args)
 
     // First time init
     data->players->activePlayer = PLAYER_1;
-//    sendDie(data);
-//    data->players->activePlayer = PLAYER_2;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
@@ -139,6 +137,7 @@ void* gameThread(void *args)
         }
         printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
+        // TODO check and/or update pawnsOnEnd
 
 
         mutex_unlock(data->mutex);
@@ -220,7 +219,7 @@ void* playerThread(void *args)
         //n = read(data->clSockFD[data->players->activePlayer], &data->option, 255);
 
         sendDie(data);
-        data->players->pawnsOnEnd[0] += 1;
+        data->players->pawnsOnEnd[0] += 1; // TODO update pawnsOnEnd[id]
 
 //        nextPlayer(data->players);
         //printf("Player %d is next!\n", data->players->activePlayer);
