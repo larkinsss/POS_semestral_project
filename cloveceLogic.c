@@ -119,6 +119,7 @@ bool awaitConfirmation(int sockfd)
         perror("Error reading from socket on awaitConfirmation()\n");
         return false;
     }
+    return descriptor.code == CONFIRM;
 }
 
 bool positionEquals(Position a, Position b)
