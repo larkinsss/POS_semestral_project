@@ -18,35 +18,35 @@ void init(PlayerData *data, int playerCount)
 {
     srand(time(NULL));
     *data = (PlayerData) {
-            playerCount, -1, // TODO
-            { 0, 0, 0, 0 },
-            {
+        playerCount, -1, // TODO
+        { 0, 0, 0, 0 },
+        {
 
-                    {
-                            (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
-                            (Pawn) {playerPos[0][0][1], START_TILE_P1, 0, '2', false},
-                            (Pawn) {playerPos[0][0][2], START_TILE_P1, 0, '3', false},
-                            (Pawn) {playerPos[0][0][3], START_TILE_P1, 0, '4', false}
-                    },
-                    {
-                            (Pawn) {playerPos[1][0][0], START_TILE_P2, 0, '1', false},
-                            (Pawn) {playerPos[1][0][1], START_TILE_P2, 0, '2', false},
-                            (Pawn) {playerPos[1][0][2], START_TILE_P2, 0, '3', false},
-                            (Pawn) {playerPos[1][0][3], START_TILE_P2, 0, '4', false}
-                    },
-                    {
-                            (Pawn) {playerPos[2][0][0], START_TILE_P3, 0, '1', false},
-                            (Pawn) {playerPos[2][0][1], START_TILE_P3, 0, '2', false},
-                            (Pawn) {playerPos[2][0][2], START_TILE_P3, 0, '3', false},
-                            (Pawn) {playerPos[2][0][3], START_TILE_P3, 0, '4', false}
-                    },
-                    {
-                            (Pawn) {playerPos[3][0][0], START_TILE_P4, 0, '1', false},
-                            (Pawn) {playerPos[3][0][1], START_TILE_P4, 0, '2', false},
-                            (Pawn) {playerPos[3][0][2], START_TILE_P4, 0, '3', false},
-                            (Pawn) {playerPos[3][0][3], START_TILE_P4, 0, '4', false}
-                    }
+            {
+                (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
+                (Pawn) {playerPos[0][0][1], START_TILE_P1, 0, '2', false},
+                (Pawn) {playerPos[0][0][2], START_TILE_P1, 0, '3', false},
+                (Pawn) {playerPos[0][0][3], START_TILE_P1, 0, '4', false}
+            },
+            {
+                (Pawn) {playerPos[1][0][0], START_TILE_P2, 0, '1', false},
+                (Pawn) {playerPos[1][0][1], START_TILE_P2, 0, '2', false},
+                (Pawn) {playerPos[1][0][2], START_TILE_P2, 0, '3', false},
+                (Pawn) {playerPos[1][0][3], START_TILE_P2, 0, '4', false}
+            },
+            {
+                (Pawn) {playerPos[2][0][0], START_TILE_P3, 0, '1', false},
+                (Pawn) {playerPos[2][0][1], START_TILE_P3, 0, '2', false},
+                (Pawn) {playerPos[2][0][2], START_TILE_P3, 0, '3', false},
+                (Pawn) {playerPos[2][0][3], START_TILE_P3, 0, '4', false}
+            },
+            {
+                (Pawn) {playerPos[3][0][0], START_TILE_P4, 0, '1', false},
+                (Pawn) {playerPos[3][0][1], START_TILE_P4, 0, '2', false},
+                (Pawn) {playerPos[3][0][2], START_TILE_P4, 0, '3', false},
+                (Pawn) {playerPos[3][0][3], START_TILE_P4, 0, '4', false}
             }
+        }
     };
 }
 
@@ -100,7 +100,7 @@ void sendDie(ThreadData* data)
 
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, die);
-    sleep(2);
+    //sleep(1);
 
     n = write(data->clSockFD[data->players->activePlayer], msg, strlen(msg));
     if (n < 0) {
@@ -108,17 +108,22 @@ void sendDie(ThreadData* data)
     }
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, die);
     sleep(1);
-
     resolvePawnMovement(data, die);
 }
 
-bool giveBool() {
-    int i = rand() % 2;
-    if (i == 0) {
-        return true;
-    } else {
+bool awaitConfirmation(int sockfd)
+{
+    Descriptor descriptor = {0 , 0};
+
+    if (read(sockfd, &descriptor, sizeof(Descriptor)) < 0) {
+        perror("Error reading from socket on awaitConfirmation()\n");
         return false;
     }
+}
+
+bool positionEquals(Position a, Position b)
+{
+    return a.x == b.x && a.y == b.y;
 }
 
 void skipTurn(ThreadData *threadData, int die) {
@@ -142,45 +147,185 @@ void skipTurn(ThreadData *threadData, int die) {
     sleep(1);
 }
 
+bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
+{
+    //Pawn pwn = *pawn;
+    pawn.travelled += tileCount;
+
+    // If the pawn has already made a round and is going to the end area
+    if (pawn.travelled >= GAME_TILE_COUNT) {
+
+        // If he rolled too high of a number to get into the end area
+        if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
+            return false;
+        } else {
+            // If he can get into the end area -- update his position
+            pawn.pos = playerPos[playerData->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
+        }
+    } else {
+        // If the pawn stays in the game area, update his position
+        pawn.pos = gamePos[pawn.startIndex + pawn.travelled % GAME_TILE_COUNT];
+    }
+
+    // Makes sure that the pawn doesn't jump on a pawn of the same player
+    for (int i = 0; i < PAWN_COUNT; ++i) {
+        if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
+{
+    pawn->travelled += tileCount;
+
+    if (pawn->travelled >= GAME_TILE_COUNT) {
+        pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
+    } else {
+        pawn->pos = gamePos[pawn->startIndex + pawn->travelled % GAME_TILE_COUNT];
+    }
+}
+
+void movePawn(Pawn *pawn, enum Player player, enum PawnArea area, int index)
+{
+    if (area == AREA_GAME) {
+        pawn->pos = gamePos[index % GAME_TILE_COUNT];
+    } else {
+        pawn->pos = playerPos[player][area][index];
+    }
+}
+
+//TODO change name
+void spawnPawn(PlayerData *playerData, int pawn) {
+    if () {
+
+    }
+}
+
+bool checkCanPawnSpawn(Pawn *pawnField) {
+    for (int i = 0; i < PAWN_COUNT; ++i) {
+        if (positionEquals(gamePos[pawnField[i].startIndex], pawnField[i].pos)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void resolvePawnMovement(ThreadData *threadData, int die) {
     PlayerData *playerData = threadData->players;
+    //TODO: Maybe adresses
     Pawn pawnField[4] = {playerData->pawns[playerData->activePlayer][0],
-                    playerData->pawns[playerData->activePlayer][1],
-                    playerData->pawns[playerData->activePlayer][2],
-                    playerData->pawns[playerData->activePlayer][3]};
+                         playerData->pawns[playerData->activePlayer][1],
+                         playerData->pawns[playerData->activePlayer][2],
+                         playerData->pawns[playerData->activePlayer][3]};
 
 
     bool noPawnsInField = true;
     int n = 0;
     for (int i = 0; i < 4; ++i) {
-        if  (pawnField[i].pos.x != playerPos[playerData->activePlayer][0][i].x ||
-        pawnField[i].pos.y != playerPos[playerData->activePlayer][0][i].y) {
+        if (!positionEquals(pawnField[i].pos,playerPos[playerData->activePlayer][0][i])){
             noPawnsInField = false;
         }
     }
 
+    int moves = 0;
+    Pawn possibleMoves[4] = {0};
     if (noPawnsInField) {
+        //No pawns of field
         if(die == 6) {
-            n = 4;
+            //Rolled 6 while no pawns on field, can select one pawn to put on field
+            for (int i = 0; i < PAWN_COUNT; ++i) {
+                possibleMoves[i] = pawnField[i];
+            }
         } else {
+            //Rolled other than 6 while no pawns on field, cannot move
             skipTurn(threadData, die);
         }
     } else {
-        //check if you can advance
-        for (int i = 0; i < 4; ++i) {
-            if (pawnField[i].isActive) {
-                // TODO: Method canPawnAdvance
-                if (giveBool()) {
-                    n++;
+        //Some pawns on field
+        if (die == 6) {
+            //Rolled 6 while some pawns on field
+            for (int i = 0; i < PAWN_COUNT; ++i) {
+                if(pawnField[i].isActive) {
+                    //Checks if pawn on field can move 6
+                    if (canPawnAdvance(pawnField[i],playerData,die)) {
+                        possibleMoves[moves] = pawnField[i];
+                        moves++;
+                    }
+                } else {
+                    //Check if pawn that is not active is on start
+                    if (positionEquals(pawnField[i].pos, gamePos[pawnField[i].startIndex])) {
+                        if (checkCanPawnSpawn(pawnField)) {
+                            possibleMoves[moves] = pawnField[i];
+                            moves++;
+                        }
+                    }
+                }
+            }
+        } else {
+            //Some pawns on field and rolled under 6
+            for (int i = 0; i < 4; ++i) {
+                if (pawnField[i].isActive) {
+                    if(canPawnAdvance(pawnField[i],playerData,die)) {
+                        possibleMoves[moves] = pawnField[i];
+                        moves++;
+                    }
                 }
             }
         }
     }
+    //TODO: Send available moves
+    Pawn* possibleMovesFinal = (Pawn *)calloc(moves,sizeof(Pawn));
+    sendAvailableMoves(threadData, possibleMovesFinal,moves);
+    free(possibleMovesFinal);
+}
 
-    Pawn* possibleMoves = (Pawn *)calloc(n,sizeof(Pawn));
+void sendAvailableMoves(ThreadData *threadData, Pawn *possibleMoves, int numberOfMoves) {
+    int n;
+    char msg[255];
+    Descriptor descriptor = {AVAILABLE_PAWNS, numberOfMoves*sizeof(Pawn)};
 
+    n = write(threadData->clSockFD[threadData->players->activePlayer], &descriptor, sizeof(Descriptor));
+    if (n < 0) {
+        perror("Error writing to socket");
+    }
 
+    sleep(1);
 
+    n = write(threadData->clSockFD[threadData->players->activePlayer], possibleMoves, sizeof(*possibleMoves));
+    if (n < 0) {
+        perror("Error writing to socket");
+    }
+    sleep(1);
+
+    char choice;
+    n = read(threadData->svSockFD, &choice, sizeof(char));
+    if (n < 0) {
+        perror("Error writing to socket");
+    }
+    //TODO: Do choice
+
+    int pawn = atoi(&choice)-1;
+    spawnPawn(threadData->players, pawn);
+
+}
+
+Pawn* checkForPawn(PlayerData* data, Position position)
+{
+    Pawn* pawn;
+
+    for (int player = 0; player < data->count; ++player) {
+        for (int i = 0; i < PAWN_COUNT; ++i) {
+            pawn = &data->pawns[player][i];
+            if (positionEquals(pawn->pos, position)) {
+                return pawn;
+            }
+        }
+    }
+
+    return null;
 }
 
 void* gameThread(void *args)
@@ -188,8 +333,8 @@ void* gameThread(void *args)
     ThreadData *data = (ThreadData *) args;
     mutex_lock(data->mutex);
     printf("Server init\n");
-    startGame(data);
-    //sleep(5);
+//    startGame(data);
+//    sleep(5);
 
     int n = 0;
     int die = 0;

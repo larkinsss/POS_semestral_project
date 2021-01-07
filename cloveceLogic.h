@@ -238,5 +238,8 @@ void* gameThread(void *args);
 void* playerThread(void *args);
 void resolvePawnMovement(ThreadData *threadData, int die);
 void skipTurn(ThreadData *threadData, int die);
+void sendAvailableMoves(ThreadData *threadData, Pawn *possibleMoves, int numberOfMoves);
+bool checkCanPawnSpawn(Pawn *playerData);
+void spawnPawn(PlayerData *playerData, int pawn);
 
 #endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
