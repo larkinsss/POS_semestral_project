@@ -157,8 +157,25 @@ const Position playerPos[4][2][4] = {
         }
 };
 
-Pawn* pawnsGameArea[40];
-Pawn* pawnsEndArea[4][4];
+/**
+ * Array of Pawn*, where each index represents a single tile of game area.
+ * The size of the array is GAME_TILE_COUNT
+ */
+Pawn* pawnsGameArea[GAME_TILE_COUNT] = {null};
+
+/**
+ * Array of Pawn*, where each index represents a single tile of end area.
+ * pawnsEndArea[playerIndex][tileIndex]
+ * The size of the array [playerCount][PAWN_COUNT]
+ */
+Pawn* pawnsEndArea[4][PAWN_COUNT] = { {null}, {null}, {null}, {null} };
+
+/**
+ * Array of Pawn*, where each index represents a single tile of start area.
+ * pawnsStartArea[playerIndex][tileIndex]
+ * The size of the array is [playerCount][PAWN_COUNT]
+ */
+Pawn* pawnsStartArea[4][PAWN_COUNT] = { {null}, {null}, {null}, {null} };
 
 /**
  * Rolls a six-sided die
@@ -242,15 +259,53 @@ void nextPlayer(PlayerData* playerData);
  */
 bool checkPawns(PlayerData* playerData);
 
+/**
+ * Checks if any of the pawns in the given array are on their spawnpoint
+ * @param pawns
+ * @return true, if there is no pawn on the spawnpoint
+ */
+bool canSpawn(Pawn *pawns);
+
+/**
+ * Calculates index of the next position index of a given pawn, but does not actually modify its position
+ * @param pawn to be 'moved'
+ * @param player whose pawn is it
+ * @param tileCount how many tiles should the pawn 'move'
+ * @return
+ */
+int nextPositionIndex(Pawn pawn, enum Player player, int tileCount);
+
+/**
+ * Spawns given pawn onto the game area
+ * @param pawn to be spawned
+ * @param playerData
+ */
+void spawnPawn(Pawn *pawn, PlayerData *playerData);
+
+/**
+ * Executes the pawn action - spawns pawn or advances its position.
+ * Action is determined based on pawn.isActive
+ * @param pawn
+ * @param data
+ * @param rolledNum
+ */
+void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
+
+/**
+ * Returns given pawn home to the start area
+ * @param pawn
+ * @param data
+ */
+void pawnReturnHome(Pawn *pawn, PlayerData *data);
+
 void startGame(ThreadData *data);
 int gameLogic(PlayerData *gameData);
-void sendDie(ThreadData* data);
+void sendDiceRoll(ThreadData *data, int rolledNum);
+void sendSkipTurn(ThreadData *threadData, int die);
+void sendChoice(ThreadData *data, Pawn *choices, int choiceCount);
+char receiveChoice(ThreadData *data);
 void* gameThread(void *args);
 void* playerThread(void *args);
-void resolvePawnMovement(ThreadData *threadData, int die);
-void skipTurn(ThreadData *threadData, int die);
-void sendAvailableMoves(ThreadData *threadData, Pawn *possibleMoves, int numberOfMoves);
-bool checkCanPawnSpawn(Pawn *playerData);
-void spawnPawn(PlayerData *playerData, int pawn);
+Pawn* resolvePawnMovement(ThreadData *data, int die);
 
 #endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
