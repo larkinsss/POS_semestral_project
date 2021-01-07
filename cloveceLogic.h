@@ -177,7 +177,7 @@ Pawn* pawnsGameArea[40];
 Pawn* pawnsEndArea[4][4];
 
 void init(PlayerData *data, int playerCount);
-void startGame(PlayerData *data);
+void startGame(ThreadData *data);
 int gameLogic(PlayerData *gameData);
 void draw();
 void* gameThread(void *args);
