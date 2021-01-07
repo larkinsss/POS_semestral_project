@@ -70,7 +70,6 @@ typedef struct {
     PlayerData* players;
     bool end;
 
-    socklen_t clSockLen[2]; // TODO
     int clSockFD[2];
     int svSockFD;
 
@@ -178,7 +177,7 @@ Pawn* pawnsGameArea[40];
 Pawn* pawnsEndArea[4][4];
 
 void init(PlayerData *data);
-void startGame(PlayerData *data);
+void startGame(ThreadData *data);
 int gameLogic(PlayerData *gameData);
 void draw();
 void* gameThread(void *args);

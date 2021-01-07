@@ -50,9 +50,15 @@ void init(PlayerData *data)
     };
 }
 
-void startGame(PlayerData *data)
-{
-    // TODO
+void startGame(ThreadData *data) {
+    int n;
+    Descriptor descriptor = {START_GAME, 255};
+    for (int i = 0; i < data->players->count; ++i) {
+        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
+        if (n < 0){
+            perror("Writing to socket on START_GAME went wrong. \n");
+        }
+    }
 }
 
 int rollDie() {
@@ -94,14 +100,14 @@ void sendDie(ThreadData* data)
 
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, die);
-//    sleep(1);
+    //sleep(1);
 
     n = write(data->clSockFD[data->players->activePlayer], msg, strlen(msg));
     if (n < 0) {
         perror("Error writing to socket");
     }
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, die);
-//    sleep(1);
+    sleep(1);
 }
 
 void* gameThread(void *args)
@@ -109,7 +115,8 @@ void* gameThread(void *args)
     ThreadData *data = (ThreadData *) args;
     mutex_lock(data->mutex);
     printf("Server init\n");
-    startGame(data->players);
+    startGame(data);
+    sleep(5);
 
     int n = 0;
     int die = 0;
@@ -243,7 +250,7 @@ int main(int argc, char *argv[])
     }
 
     int playerCount = atoi(argv[2]);
-    if (playerCount < 2 || playerCount > 4) {
+    if (playerCount < 1 || playerCount > 4) {
         fprintf(stderr, "Nubmer of players must be 2, 3 or 4\n");
         return 3;
     }
