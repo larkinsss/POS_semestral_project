@@ -23,28 +23,28 @@ void init(PlayerData *data, int playerCount)
         {
 
             {
-                (Pawn) {playerPos[0][0][0], 0, '1', false},
-                (Pawn) {playerPos[0][0][1], 0, '2', false},
-                (Pawn) {playerPos[0][0][2], 0, '3', false},
-                (Pawn) {playerPos[0][0][3], 0, '4', false}
+                (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
+                (Pawn) {playerPos[0][0][1], START_TILE_P1, 0, '2', false},
+                (Pawn) {playerPos[0][0][2], START_TILE_P1, 0, '3', false},
+                (Pawn) {playerPos[0][0][3], START_TILE_P1, 0, '4', false}
             },
             {
-                (Pawn) {playerPos[1][0][0], 0, '1', false},
-                (Pawn) {playerPos[1][0][1], 0, '2', false},
-                (Pawn) {playerPos[1][0][2], 0, '3', false},
-                (Pawn) {playerPos[1][0][3], 0, '4', false}
+                (Pawn) {playerPos[1][0][0], START_TILE_P2, 0, '1', false},
+                (Pawn) {playerPos[1][0][1], START_TILE_P2, 0, '2', false},
+                (Pawn) {playerPos[1][0][2], START_TILE_P2, 0, '3', false},
+                (Pawn) {playerPos[1][0][3], START_TILE_P2, 0, '4', false}
             },
             {
-                (Pawn) {playerPos[2][0][0], 0, '1', false},
-                (Pawn) {playerPos[2][0][1], 0, '2', false},
-                (Pawn) {playerPos[2][0][2], 0, '3', false},
-                (Pawn) {playerPos[2][0][3], 0, '4', false}
+                (Pawn) {playerPos[2][0][0], START_TILE_P3, 0, '1', false},
+                (Pawn) {playerPos[2][0][1], START_TILE_P3, 0, '2', false},
+                (Pawn) {playerPos[2][0][2], START_TILE_P3, 0, '3', false},
+                (Pawn) {playerPos[2][0][3], START_TILE_P3, 0, '4', false}
             },
             {
-                (Pawn) {playerPos[3][0][0], 0, '1', false},
-                (Pawn) {playerPos[3][0][1], 0, '2', false},
-                (Pawn) {playerPos[3][0][2], 0, '3', false},
-                (Pawn) {playerPos[3][0][3], 0, '4', false}
+                (Pawn) {playerPos[3][0][0], START_TILE_P4, 0, '1', false},
+                (Pawn) {playerPos[3][0][1], START_TILE_P4, 0, '2', false},
+                (Pawn) {playerPos[3][0][2], START_TILE_P4, 0, '3', false},
+                (Pawn) {playerPos[3][0][3], START_TILE_P4, 0, '4', false}
             }
         }
     };
