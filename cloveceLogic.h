@@ -48,7 +48,7 @@ typedef struct coordinates {
 } Position;
 
 /**
- * Stores information about a pawn.
+ * Pawn - Stores information about a pawn.
  * That includes: position, number of tiles travelled, its char representation
  */
 typedef struct gamepawn {
@@ -60,16 +60,19 @@ typedef struct gamepawn {
 } Pawn;
 
 /**
- * Player Data
+ * PlayerData
  */
-typedef struct playerData {
+typedef struct player_data {
     int count;
     enum Player activePlayer;
     int pawnsOnEnd[4];  // TODO calloc
     Pawn pawns[4][4];   // TODO calloc
 } PlayerData;
 
-typedef struct {
+/**
+ * ThreadData
+ */
+typedef struct thread_data{
     PlayerData* players;
     bool end;
 
@@ -80,28 +83,6 @@ typedef struct {
     Cond* wakeServer;
     Cond* wakeClient;
 } ThreadData;
-
-typedef struct {
-
-} GameData;
-
-typedef struct {
-    PlayerData playerData;
-    int playerId;
-    volatile bool endGame;
-    int whosTurn;
-    char *option;
-    int numberOfPlayers;
-} OldgameData;
-
-typedef struct dataForPlayer {
-    PlayerData playerData;
-    int playerId;
-    volatile bool endGame;
-    int whosTurn;
-    char *option;
-    int numberOfPlayers;
-} DATA_FOR_PLAYER;
 
 /**
  * Coordinates for each tile in the active gameThread area.
@@ -179,13 +160,11 @@ const Position playerPos[4][2][4] = {
 Pawn* pawnsGameArea[40];
 Pawn* pawnsEndArea[4][4];
 
-void init(PlayerData *data, int playerCount);
-void startGame(ThreadData *data);
-int gameLogic(PlayerData *gameData);
+/**
+ * Rolls a six-sided die
+ * @return integer from 1 to 6
+ */
 int rollDie();
-void nextPlayer(PlayerData* data);
-bool checkPawns(PlayerData* data);
-void sendDie(ThreadData* data);
 
 /**
  * Awaits a descriptor to arrive at the given socket file descriptor.
@@ -234,6 +213,38 @@ void advancePawn(Pawn *pawn, PlayerData* data, int tileCount);
  */
 Pawn* checkForPawn(PlayerData* data, Position position);
 
+/**
+ * Write 'size' bytes of buffer to the active player using 'write()'.
+ * @param data socket and active player will be retrieved from here
+ * @param buffer what to send
+ * @param size number of bytes to send from buffer
+ * @return true only if the buffer was written successfully, false otherwise
+ */
+bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
+
+/**
+ * Initializes player data
+ * @param data
+ * @param playerCount
+ */
+void init(PlayerData *data, int playerCount);
+
+/**
+ * Changes the member activePlayer to the next player
+ * @param playerData
+ */
+void nextPlayer(PlayerData* playerData);
+
+/**
+ * Checks the ending condition of 4 pawns in the end area
+ * @param playerData
+ * @return true, if there are 4 pawns in any of the players end areas
+ */
+bool checkPawns(PlayerData* playerData);
+
+void startGame(ThreadData *data);
+int gameLogic(PlayerData *gameData);
+void sendDie(ThreadData* data);
 void* gameThread(void *args);
 void* playerThread(void *args);
 void resolvePawnMovement(ThreadData *threadData, int die);

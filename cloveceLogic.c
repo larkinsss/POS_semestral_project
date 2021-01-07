@@ -14,6 +14,15 @@
 
 static enum Player p = PLAYER_1;
 
+bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size)
+{
+    if ( write(data->clSockFD[data->players->activePlayer], buffer, size) ) {
+        perror("Error writing to socket in method writeToActivePlayer(ThreadData, void*, size_t)\n");
+        return false;
+    }
+    return true;
+}
+
 void init(PlayerData *data, int playerCount)
 {
     srand(time(NULL));
@@ -21,7 +30,6 @@ void init(PlayerData *data, int playerCount)
         playerCount, -1, // TODO
         { 0, 0, 0, 0 },
         {
-
             {
                 (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
                 (Pawn) {playerPos[0][0][1], START_TILE_P1, 0, '2', false},
@@ -65,19 +73,17 @@ int rollDie() {
     return rand() % 6 + 1;
 }
 
-void nextPlayer(PlayerData* data) {
-    printf("Player change from %d", data->activePlayer);
-    data->activePlayer = (data->activePlayer + 1) % data->count;
-    printf(" to %d\n", data->activePlayer);
+void nextPlayer(PlayerData* playerData) {
+    printf("Player change from %d", playerData->activePlayer);
+    playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
+    printf(" to %d\n", playerData->activePlayer);
 }
 
-bool checkPawns(PlayerData* data)
+bool checkPawns(PlayerData* playerData)
 {
-    //printf("Pawns: %d\n", data->pawnsOnEnd[0]);
-    for (int i = 0; i < data->count; ++i) {
-        if (data->pawnsOnEnd[i] >= data->count * 2) // TODO change data->count * 2
+    for (int i = 0; i < playerData->count; ++i) {
+        if (playerData->pawnsOnEnd[i] >= playerData->count * 2) // TODO change data->count * 2
         {
-            printf("Pawns send false -------- [%d] %d", i, data->pawnsOnEnd[i]);
             return false;
         }
     }
@@ -93,19 +99,14 @@ void sendDie(ThreadData* data)
     // Sending the type of data
     Descriptor descriptor = {DICE_ROLL, 255};
 
-    n = write(data->clSockFD[data->players->activePlayer], &descriptor, sizeof(Descriptor));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, die);
     //sleep(1);
 
-    n = write(data->clSockFD[data->players->activePlayer], msg, strlen(msg));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(data, msg, strlen(msg));
+
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, die);
     sleep(1);
     resolvePawnMovement(data, die);
@@ -119,6 +120,7 @@ bool awaitConfirmation(int sockfd)
         perror("Error reading from socket on awaitConfirmation()\n");
         return false;
     }
+
     return descriptor.code == CONFIRM;
 }
 
@@ -132,19 +134,13 @@ void skipTurn(ThreadData *threadData, int die) {
     char msg[255];
     Descriptor descriptor = {SKIP_TURN, 255};
 
-    n = write(threadData->clSockFD[threadData->players->activePlayer], &descriptor, sizeof(Descriptor));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
     bzero(msg, 255);
     sprintf(msg, "You rolled a %d but you cannot move.", die);
     sleep(1);
 
-    n = write(threadData->clSockFD[threadData->players->activePlayer], msg, strlen(msg));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(threadData, msg, strlen(msg));
     sleep(1);
 }
 
@@ -199,22 +195,25 @@ void movePawn(Pawn *pawn, enum Player player, enum PawnArea area, int index)
 }
 
 //TODO change name
-void spawnPawn(PlayerData *playerData, int pawn) {
-    if () {
+void spawnPawn(PlayerData *playerData, int pawn)
+{
+    if (false) {
 
     }
 }
 
-bool checkCanPawnSpawn(Pawn *pawnField) {
+bool checkCanPawnSpawn(Pawn *pawnField)
+{
     for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (positionEquals(gamePos[pawnField[i].startIndex], pawnField[i].pos)) {
+        if (positionEquals(gamePos[pawnField[i].startIndex], pawnField[i].pos)) {                                       // Kontroluje vsetky spawn pointy, nie len ten, na ktory sa spawne dany hrac
             return false;
         }
     }
     return true;
 }
 
-void resolvePawnMovement(ThreadData *threadData, int die) {
+void resolvePawnMovement(ThreadData *threadData, int die)                                                               // TODO too complicated of a method
+{
     PlayerData *playerData = threadData->players;
     //TODO: Maybe adresses
     Pawn pawnField[4] = {playerData->pawns[playerData->activePlayer][0],
@@ -223,9 +222,9 @@ void resolvePawnMovement(ThreadData *threadData, int die) {
                          playerData->pawns[playerData->activePlayer][3]};
 
 
-    bool noPawnsInField = true;
     int n = 0;
-    for (int i = 0; i < 4; ++i) {
+    bool noPawnsInField = true;                                                                                         // TODO negated name of var bool -> pawnsInField
+    for (int i = 0; i < PAWN_COUNT; ++i) {
         if (!positionEquals(pawnField[i].pos,playerPos[playerData->activePlayer][0][i])){
             noPawnsInField = false;
         }
@@ -286,19 +285,13 @@ void resolvePawnMovement(ThreadData *threadData, int die) {
 void sendAvailableMoves(ThreadData *threadData, Pawn *possibleMoves, int numberOfMoves) {
     int n;
     char msg[255];
-    Descriptor descriptor = {AVAILABLE_PAWNS, numberOfMoves*sizeof(Pawn)};
+    Descriptor descriptor = {AVAILABLE_PAWNS, numberOfMoves * sizeof(Pawn)};
 
-    n = write(threadData->clSockFD[threadData->players->activePlayer], &descriptor, sizeof(Descriptor));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
     sleep(1);
 
-    n = write(threadData->clSockFD[threadData->players->activePlayer], possibleMoves, sizeof(*possibleMoves));
-    if (n < 0) {
-        perror("Error writing to socket");
-    }
+    writeToActivePlayer(threadData, possibleMoves, descriptor.size);
     sleep(1);
 
     char choice;
@@ -368,31 +361,6 @@ void* gameThread(void *args)
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
-    /*while(!end) {
-        generovaneCislo = 1 + rand() % (6);
-
-        mvprintw(11,0,"Hodil si cislo: %d \n", generovaneCislo);
-
-        bool playerAhasActive = false;
-        for (int i = 0; i < 4; ++i) {
-            if (playerA[i].isActive) {
-                printw("%d", i+1);
-                playerAhasActive = true;
-            }
-        }
-        printw("\n");
-
-        if (playerAhasActive) {
-            mvprintw(13,0,"Zadaj cislo panacika:");
-            scanw("%d",&panacik);
-
-            if (playerA[panacik-1].isActive) {
-                playerA[panacik-1].travelled += generovaneCislo;
-                playerA[panacik-1].pos = gameArea[33+generovaneCislo];
-                end = true;
-            }
-        }
-    }*/
     return null;
 }
 
@@ -401,40 +369,20 @@ void* playerThread(void *args)
     ThreadData *data = (ThreadData *) args;
     enum Player id = p++;
     printf("Player %d start!\n", id);
-    bool next = false;
-
-    /*
-    GAME_DATA * data = (GAME_DATA *) args;
-    DATA_FOR_PLAYER dataToSend = (DATA_FOR_PLAYER){data->playerData,data->playerId, data->endGame, data->whosTurn, data->option, data->numberOfPlayers };
-    */
+    bool goToSleep = false;
 
     while (!data->end) {
         mutex_lock(data->mutex);
 
-        /*
-        n = write(data->clSockFD[id], &dataToSend, sizeof(DATA_FOR_PLAYER));
-        if (n < 0) {
-            perror("Error writing to socket");
-            //return 5;
-        }
-        */
-
-        while(next || data->players->activePlayer != id) {
-            printf("Player %d sleeping, active = %d\n", id, data->players->activePlayer);
+        while(goToSleep || data->players->activePlayer != id) {
             cond_wait(data->wakeClient, data->mutex);
             if (data->end) {
                 mutex_unlock(data->mutex);
                 cond_signal(data->wakeServer);
                 return null;
             }
-            printf("Player %d woke up, active = %d\n", id, data->players->activePlayer);
-            next = false;
+            goToSleep = false;
         }
-
-        //printf("Player %d woke up!\n", id);
-
-        //while(atoi(data->option) == 0) {
-        //n = read(data->clSockFD[data->players->activePlayer], &data->option, 255);
 
         sendDie(data);
         /*
@@ -446,12 +394,7 @@ void* playerThread(void *args)
          */
         data->players->pawnsOnEnd[0] += 1; // TODO update pawnsOnEnd[id]
 
-//        nextPlayer(data->players);
-        //printf("Player %d is next!\n", data->players->activePlayer);
-
-        next = true;
-
-        printf("Player %d waking server active = %d\n", id, data->players->activePlayer);
+        goToSleep = true;
         mutex_unlock(data->mutex);
         cond_signal(data->wakeServer);
     }
