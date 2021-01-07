@@ -25,12 +25,14 @@
 #define thread_join pthread_join
 
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
-enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN };
-enum PawnPosition { START, GAME_AREA, END };
+enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN, CONFIRM };
+enum PawnArea { AREA_START, AREA_END, AREA_GAME };
+enum StartTileIndex { START_TILE_P1 = 33, START_TILE_P2 = 3, START_TILE_P3 = 13, START_TILE_P4 = 23};
 const int MAX_PLAYER_COUNT = 4;
 const int PAWN_COUNT = 4;
 const int SPACING = 2;
 const int SIZE = 11;
+const int GAME_TILE_COUNT = 40;
 
 typedef struct {
     enum Command code;
@@ -51,6 +53,7 @@ typedef struct coordinates {
  */
 typedef struct gamepawn {
     Position pos;
+    int startIndex;
     int travelled;
     char symbol;
     bool isActive;
@@ -62,8 +65,8 @@ typedef struct gamepawn {
 typedef struct playerData {
     int count;
     enum Player activePlayer;
-    int pawnsOnEnd[4];
-    Pawn player[4][4];
+    int pawnsOnEnd[4];  // TODO calloc
+    Pawn pawns[4][4];   // TODO calloc
 } PlayerData;
 
 typedef struct {
@@ -152,7 +155,7 @@ const Position gamePos[40] = {
  * [playerIndex][areaIndex][tileIndex]
  * \playerIndex index of a player 0 -> 3
  * \areaIndex index of an area 0 -> 1 where 0 is startingArea and 1 is Home or ending area
- * \tileIndex index of a tile 0 -> 3, when addressing the ending area, the tile closest to the gameArea has index=0
+ * \tileIndex index of a tile 0 -> 3, when addressing the ending area, the tile closest to the entrance from gameArea has index=0
  */
 const Position playerPos[4][2][4] = {
         {
@@ -179,7 +182,58 @@ Pawn* pawnsEndArea[4][4];
 void init(PlayerData *data, int playerCount);
 void startGame(ThreadData *data);
 int gameLogic(PlayerData *gameData);
-void draw();
+int rollDie();
+void nextPlayer(PlayerData* data);
+bool checkPawns(PlayerData* data);
+void sendDie(ThreadData* data);
+
+/**
+ * Awaits a descriptor to arrive at the given socket file descriptor.
+ * @param sockfd is a socket file descriptor, where the descriptor will arrive
+ * @return true only when the descriptor arrived, and its code == CONFIRM
+ */
+bool awaitConfirmation(int sockfd);
+
+/**
+ * Moves given pawn, into the given area at the given tile index
+ * @param pawn to move
+ * @param player owner of the given pawn
+ * @param area AREA_START, AREA_END, AREA_GAME
+ * @param index tile index in the given area, where the pawn shall be moved
+ */
+void movePawn(Pawn *pawn, enum Player player, enum PawnArea area, int index);
+
+/**
+ * Checks if the given positions match
+ * @return true if @code a.x == b.x && a.y == b.y
+ */
+bool positionEquals(Position a, Position b);
+
+/**
+ * Checks if the given pawn can advance game board by the given number of tiles
+ * @param pawn
+ * @param playerData
+ * @param tileCount by how many tiles should the given pawn move
+ * @return true only if the pawn can move the given number of tiles
+ */
+bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount);
+
+/**
+ * Advance the pawn by the given amount of tiles.
+ * @param pawn
+ * @param data
+ * @param tileCount by how many tiles should the given pawn move
+ */
+void advancePawn(Pawn *pawn, PlayerData* data, int tileCount);
+
+/**
+ * Checks if the given position is occupied by a pawn
+ * @param data
+ * @param position to check
+ * @return a pawn with the given position, if not found returns null
+ */
+Pawn* checkForPawn(PlayerData* data, Position position);
+
 void* gameThread(void *args);
 void* playerThread(void *args);
 

@@ -110,6 +110,89 @@ void sendDie(ThreadData* data)
     sleep(1);
 }
 
+bool awaitConfirmation(int sockfd)
+{
+    Descriptor descriptor = {0 , 0};
+
+    if (read(sockfd, &descriptor, sizeof(Descriptor)) < 0) {
+        perror("Error reading from socket on awaitConfirmation()\n");
+        return false;
+    }
+
+    return descriptor.code == CONFIRM;
+}
+
+void movePawn(Pawn *pawn, enum Player player, enum PawnArea area, int index)
+{
+    if (area == AREA_GAME) {
+        pawn->pos = gamePos[index % GAME_TILE_COUNT];
+    } else {
+        pawn->pos = playerPos[player][area][index];
+    }
+}
+
+bool positionEquals(Position a, Position b)
+{
+    return a.x == b.x && a.y == b.y;
+}
+
+bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
+{
+    //Pawn pwn = *pawn;
+    pawn.travelled += tileCount;
+
+    // If the pawn has already made a round and is going to the end area
+    if (pawn.travelled >= GAME_TILE_COUNT) {
+
+        // If he rolled too high of a number to get into the end area
+        if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
+            return false;
+        } else {
+            // If he can get into the end area -- update his position
+            pawn.pos = playerPos[playerData->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
+        }
+    } else {
+        // If the pawn stays in the game area, update his position
+        pawn.pos = gamePos[pawn.startIndex + pawn.travelled % GAME_TILE_COUNT];
+    }
+
+    // Makes sure that the pawn doesn't jump on a pawn of the same player
+    for (int i = 0; i < PAWN_COUNT; ++i) {
+        if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
+{
+    pawn->travelled += tileCount;
+
+    if (pawn->travelled >= GAME_TILE_COUNT) {
+        pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
+    } else {
+        pawn->pos = gamePos[pawn->startIndex + pawn->travelled % GAME_TILE_COUNT];
+    }
+}
+
+Pawn* checkForPawn(PlayerData* data, Position position)
+{
+    Pawn* pawn;
+
+    for (int player = 0; player < data->count; ++player) {
+        for (int i = 0; i < PAWN_COUNT; ++i) {
+            pawn = &data->pawns[player][i];
+            if (positionEquals(pawn->pos, position)) {
+                return pawn;
+            }
+        }
+    }
+
+    return null;
+}
+
 void* gameThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
@@ -138,7 +221,6 @@ void* gameThread(void *args)
         printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
         // TODO check and/or update pawnsOnEnd
-
 
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);
@@ -219,6 +301,13 @@ void* playerThread(void *args)
         //n = read(data->clSockFD[data->players->activePlayer], &data->option, 255);
 
         sendDie(data);
+        /*
+         * TODO calculate if player can play a pawn
+         * if he can then retreive all playable pawns
+         *      send pawns to player and wait for his choice
+         *      Play the chosen pawn, then update pawnsOnEnd if needed.
+         * if he can't play a pawn, send CODE to skip the turn.
+         */
         data->players->pawnsOnEnd[0] += 1; // TODO update pawnsOnEnd[id]
 
 //        nextPlayer(data->players);
