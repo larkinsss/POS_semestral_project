@@ -236,5 +236,7 @@ Pawn* checkForPawn(PlayerData* data, Position position);
 
 void* gameThread(void *args);
 void* playerThread(void *args);
+void resolvePawnMovement(ThreadData *threadData, int die);
+void skipTurn(ThreadData *threadData, int die);
 
 #endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
