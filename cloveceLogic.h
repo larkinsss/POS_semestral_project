@@ -70,8 +70,7 @@ typedef struct {
     PlayerData* players;
     bool end;
 
-    socklen_t clSockLen[2]; // TODO
-    int clSockFD[2];
+    int* clSockFD;
     int svSockFD;
 
     Mutex* mutex;
@@ -177,7 +176,7 @@ const Position playerPos[4][2][4] = {
 Pawn* pawnsGameArea[40];
 Pawn* pawnsEndArea[4][4];
 
-void init(PlayerData *data);
+void init(PlayerData *data, int playerCount);
 void startGame(PlayerData *data);
 int gameLogic(PlayerData *gameData);
 void draw();

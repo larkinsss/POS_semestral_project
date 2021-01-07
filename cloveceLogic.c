@@ -12,13 +12,13 @@
 #include "cloveceLogic.h"
 #include <pthread.h>
 
-enum Player p = PLAYER_1;
+static enum Player p = PLAYER_1;
 
-void init(PlayerData *data)
+void init(PlayerData *data, int playerCount)
 {
     srand(time(NULL));
     *data = (PlayerData) {
-        2, -1, // TODO
+        playerCount, -1, // TODO
         { 0, 0, 0, 0 },
         {
 
@@ -69,7 +69,7 @@ bool checkPawns(PlayerData* data)
 {
     //printf("Pawns: %d\n", data->pawnsOnEnd[0]);
     for (int i = 0; i < data->count; ++i) {
-        if (data->pawnsOnEnd[i] >= 4) // TODO
+        if (data->pawnsOnEnd[i] >= data->count * 2) // TODO change data->count * 2
         {
             printf("Pawns send false -------- [%d] %d", i, data->pawnsOnEnd[i]);
             return false;
@@ -101,7 +101,7 @@ void sendDie(ThreadData* data)
         perror("Error writing to socket");
     }
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, die);
-//    sleep(1);
+    sleep(1);
 }
 
 void* gameThread(void *args)
@@ -117,11 +117,10 @@ void* gameThread(void *args)
 
     // First time init
     data->players->activePlayer = PLAYER_1;
-    sendDie(data);
-    data->players->activePlayer = PLAYER_2;
+//    sendDie(data);
+//    data->players->activePlayer = PLAYER_2;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
-    printf("First time rolled %d\n", die);
 
     for (int i = data->players->activePlayer; checkPawns(data->players); i = (i + 1) % data->players->count) {
         mutex_lock(data->mutex);
@@ -133,6 +132,8 @@ void* gameThread(void *args)
         }
         printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
+
+
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);
     }
@@ -141,7 +142,7 @@ void* gameThread(void *args)
     mutex_lock(data->mutex);
     data->end = true;
     mutex_unlock(data->mutex);
-    cond_signal(data->wakeClient);
+    cond_broadcast(data->wakeClient);
 
     /*while(!end) {
         generovaneCislo = 1 + rand() % (6);
@@ -221,7 +222,7 @@ void* playerThread(void *args)
 
         printf("Player %d waking server active = %d\n", id, data->players->activePlayer);
         mutex_unlock(data->mutex);
-        cond_broadcast(data->wakeServer);
+        cond_signal(data->wakeServer);
     }
 
     printf("Player %d end\n", id);
@@ -290,10 +291,11 @@ int main(int argc, char *argv[])
     cond_init(&wakeServer, NULL);
     cond_init(&wakeClient, NULL);
 
+    int* clSockFD = (int*) calloc(playerCount, sizeof(int));
+
     ThreadData thData = (ThreadData) {
             &playerData, false,
-            {0, 0},
-            {0, 0},
+            clSockFD,
             svSockFD,
             &mutex, &wakeServer, &wakeClient
     };
@@ -302,6 +304,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in clSockAddr[playerCount];
     socklen_t clSockLen[playerCount];
 
+    printf("Waiting for players...\n");
     for (int i = 0; i < playerCount; ++i) {
         clSockLen[i] = sizeof( clSockAddr[i] );
         thData.clSockFD[i] = accept( svSockFD, (struct sockaddr *) &clSockAddr[i], &clSockLen[i] );
@@ -312,7 +315,8 @@ int main(int argc, char *argv[])
         printf("Connected player %d\n", i + 1);
     }
 
-    init(&playerData); // TODO
+
+    init(&playerData, playerCount);
 
     thread_create(&threadServer, null, &gameThread, &thData);
     for (int i = 0; i < playerCount; ++i) {
@@ -325,6 +329,9 @@ int main(int argc, char *argv[])
     for (int i = 0; i < playerCount; ++i) {
         thread_join(threadPlayer[i], NULL);
     }
+
+    // Closing
+    free(clSockFD);
 
     mutex_destroy(&mutex);
     cond_destroy(&wakeClient);
