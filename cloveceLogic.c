@@ -61,15 +61,17 @@ int rollDie() {
 
 void nextPlayer(PlayerData* data) {
     printf("Player change from %d", data->activePlayer);
-    data->activePlayer = data->activePlayer <= 1 ? 0 : data->activePlayer + 1;
-    printf("to %d\n", data->activePlayer);
+    data->activePlayer = (data->activePlayer + 1) % data->count;
+    printf(" to %d\n", data->activePlayer);
 }
 
 bool checkPawns(PlayerData* data)
 {
+    //printf("Pawns: %d\n", data->pawnsOnEnd[0]);
     for (int i = 0; i < data->count; ++i) {
-        if (data->pawnsOnEnd[i] >= 8) // TODO
+        if (data->pawnsOnEnd[i] >= 4) // TODO
         {
+            printf("Pawns send false -------- [%d] %d", i, data->pawnsOnEnd[i]);
             return false;
         }
     }
@@ -82,14 +84,24 @@ void sendDie(ThreadData* data)
     int die = rollDie();
     int n = 0;
 
+    // Sending the type of data
+    Descriptor descriptor = {DICE_ROLL, 255};
+
+    n = write(data->clSockFD[data->players->activePlayer], &descriptor, sizeof(Descriptor));
+    if (n < 0) {
+        perror("Error writing to socket");
+    }
+
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, die);
-    sleep(1);
+//    sleep(1);
 
     n = write(data->clSockFD[data->players->activePlayer], msg, strlen(msg));
     if (n < 0) {
         perror("Error writing to socket");
     }
+    printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, die);
+//    sleep(1);
 }
 
 void* gameThread(void *args)
@@ -115,11 +127,11 @@ void* gameThread(void *args)
         mutex_lock(data->mutex);
 
         while (i == data->players->activePlayer) {
+            printf("Game thread sleep... i = %d, a = %d\n", i, data->players->activePlayer);
             cond_wait(data->wakeServer, data->mutex);
+            nextPlayer(data->players);
         }
-
-        sendDie(data);
-        data->players->pawnsOnEnd[0] += 1;
+        printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);
@@ -129,7 +141,7 @@ void* gameThread(void *args)
     mutex_lock(data->mutex);
     data->end = true;
     mutex_unlock(data->mutex);
-    cond_broadcast(data->wakeClient);
+    cond_signal(data->wakeClient);
 
     /*while(!end) {
         generovaneCislo = 1 + rand() % (6);
@@ -163,40 +175,56 @@ void* playerThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
     enum Player id = p++;
-    printf("Player %d commence!\n", id);
+    printf("Player %d start!\n", id);
+    bool next = false;
 
+    /*
     GAME_DATA * data = (GAME_DATA *) args;
     DATA_FOR_PLAYER dataToSend = (DATA_FOR_PLAYER){data->playerData,data->playerId, data->endGame, data->whosTurn, data->option, data->numberOfPlayers };
+    */
 
-    for (int i = 0; i < 2; ++i) { // TODO condition while(!data->end)
+    while (!data->end) {
         mutex_lock(data->mutex);
 
+        /*
         n = write(data->clSockFD[id], &dataToSend, sizeof(DATA_FOR_PLAYER));
         if (n < 0) {
             perror("Error writing to socket");
             //return 5;
         }
+        */
 
-        while(data->players->activePlayer != id) {
+        while(next || data->players->activePlayer != id) {
+            printf("Player %d sleeping, active = %d\n", id, data->players->activePlayer);
             cond_wait(data->wakeClient, data->mutex);
             if (data->end) {
                 mutex_unlock(data->mutex);
+                cond_signal(data->wakeServer);
                 return null;
             }
+            printf("Player %d woke up, active = %d\n", id, data->players->activePlayer);
+            next = false;
         }
 
-        printf("Player %d woke up!\n", id);
+        //printf("Player %d woke up!\n", id);
 
         //while(atoi(data->option) == 0) {
         //n = read(data->clSockFD[data->players->activePlayer], &data->option, 255);
 
-        nextPlayer(data->players);
-        printf("Player %d is next!\n", data->players->activePlayer);
+        sendDie(data);
+        data->players->pawnsOnEnd[0] += 1;
 
+//        nextPlayer(data->players);
+        //printf("Player %d is next!\n", data->players->activePlayer);
+
+        next = true;
+
+        printf("Player %d waking server active = %d\n", id, data->players->activePlayer);
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeServer);
     }
 
+    printf("Player %d end\n", id);
     return null;
 }
 
@@ -240,7 +268,14 @@ int main(int argc, char *argv[])
 
     if (bind(svSockFD, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         perror("Error binding socket address");
-        return 5;
+
+        port++;
+        serv_addr.sin_port = htons(port);
+        printf("New port: %d\n", port); // TODO
+
+        if (bind(svSockFD, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            return 5;
+        }
     }
 
     listen(svSockFD, playerCount);
