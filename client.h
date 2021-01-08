@@ -1,8 +1,9 @@
 #ifndef POS_SEMESTRAL_PROJECT_CLIENT_H
 #define POS_SEMESTRAL_PROJECT_CLIENT_H
 
-#include <stdbool.h>
 #include "shared.h"
+#include <stdbool.h>
+
 
 typedef struct gameData {
     PlayerData *playerData;

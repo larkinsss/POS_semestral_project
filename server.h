@@ -1,9 +1,9 @@
 #ifndef POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
 #define POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
 
+#include "shared.h"
 #include <stdbool.h>
 #include <pthread.h>
-#include "shared.h"
 
 #define null NULL
 #define Mutex pthread_mutex_t
