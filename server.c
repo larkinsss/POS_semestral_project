@@ -127,11 +127,6 @@ bool awaitConfirmation(int sockfd)
     return descriptor.code == CONFIRM;
 }
 
-bool positionEquals(Position a, Position b)
-{
-    return a.x == b.x && a.y == b.y;
-}
-
 void sendSkipTurn(ThreadData *threadData, int die) {
     int n;
     char msg[255];

@@ -11,7 +11,7 @@
 
 int main(int argc, char *argv[])
 {
-    Data gameData;
+    PlayerData gameData;
     int sockfd, n;
     struct sockaddr_in serv_addr;
     struct hostent* server;
@@ -112,11 +112,6 @@ void gameLogic(Descriptor descriptor, int sockfd){
                 break;
         }
     }
-}
-
-bool positionEquals(Position a, Position b)
-{
-    return a.x == b.x && a.y == b.y;
 }
 
 void handleDiceRoll(Descriptor descriptor, int sockfd){
@@ -222,13 +217,13 @@ void redrawBoard(GAME_DATA data) {
 
         // Printout pawns
         //mvprintw(15,0,"Writing to pos: %d|%d", data.playerData->players[player][0].pos.x, data.playerData->players[player][0].pos.y);
-        movePrintSpacing(data.playerData->players[player][0].pos, "1");
+        movePrintSpacing(data.playerData->pawns[player][0].pos, "1");
         //mvprintw(16,0,"Writing to pos: %d|%d", data.playerData->players[player][1].pos.x, data.playerData->players[player][1].pos.y);
-        movePrintSpacing(data.playerData->players[player][1].pos, "2");
+        movePrintSpacing(data.playerData->pawns[player][1].pos, "2");
         //mvprintw(17,0,"Writing to pos: %d|%d", data.playerData->players[player][2].pos.x, data.playerData->players[player][2].pos.y);
-        movePrintSpacing(data.playerData->players[player][2].pos, "3");
+        movePrintSpacing(data.playerData->pawns[player][2].pos, "3");
         //mvprintw(18,0,"Writing to pos: %d|%d", data.playerData->players[player][3].pos.x, data.playerData->players[player][3].pos.y);
-        movePrintSpacing(data.playerData->players[player][3].pos, "4");
+        movePrintSpacing(data.playerData->pawns[player][3].pos, "4");
 
         refresh();
         attroff(COLOR_PAIR(colorFromPlayerNum(player)));
