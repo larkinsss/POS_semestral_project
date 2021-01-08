@@ -96,7 +96,7 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return rand() % 6 + 1;
+    return rand() % 2 + 5;  // TODO repair num generator
 }
 
 void nextPlayer(PlayerData* playerData) {
@@ -177,20 +177,20 @@ bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
         // If he rolled too high of a number to get into the end area
         if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
             return false;
-        } else {
-            // If he can get into the end area -- update his position
-            pawn.pos = playerPos[playerData->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
         }
-    } else {
-        // If the pawn stays in the game area, update his position
-        pawn.pos = gamePos[pawn.startIndex + pawn.travelled % GAME_TILE_COUNT];
     }
 
     // Makes sure that the pawn doesn't jump on a pawn of the same player
+    int hit = 0;
     for (int i = 0; i < PAWN_COUNT; ++i) {
         if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
-            return false;
+            hit++;
         }
+    }
+
+    // There will always be one hit - the same pawn
+    if (hit > 1) {
+        return false;
     }
 
     return true;
@@ -202,22 +202,29 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
     pawn.travelled += tileCount;
 
     if (pawn.travelled >= GAME_TILE_COUNT) {
-        return pawn.travelled % GAME_TILE_COUNT;
+        return -1;    // TODO wrong
     } else {
-        return pawn.startIndex + pawn.travelled % GAME_TILE_COUNT;
+        return (pawn.startIndex + pawn.travelled) % GAME_TILE_COUNT;
     }
 }
 
 // TODO nextPositionIndex <-> advancePawn
 void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
 {
+    printf("Pawn %c[%d], advance %d tiles [%d] ", pawn->symbol, pawn->startIndex + pawn->travelled, tileCount, pawn->startIndex + pawn->travelled % GAME_TILE_COUNT);
+    printf("pos -- [%d, %d] -> [%d, %d]\n",
+           gamePos[pawn->startIndex + pawn->travelled].x,
+           gamePos[pawn->startIndex + pawn->travelled].y,
+           gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].x,
+           gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].y
+           );
     pawn->travelled += tileCount;
 
     if (pawn->travelled >= GAME_TILE_COUNT) {
         pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
         data->pawnsOnEnd[data->activePlayer]++;
     } else {
-        pawn->pos = gamePos[pawn->startIndex + pawn->travelled % GAME_TILE_COUNT];
+        pawn->pos = gamePos[(pawn->startIndex + pawn->travelled) % GAME_TILE_COUNT];
     }
 }
 
@@ -251,15 +258,14 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
 {
     PlayerData *playerData = data->players;
     enum Player player = data->players->activePlayer;
-    Pawn* pwn = &data->players->pawns[player][0];
 
-    Pawn* choices[4] = {0};
+    Pawn* choices[4] = { null };
     int count = 0;
 
     if (die == 6) {
 
         // Spawning from home to start
-        if (canSpawn(pwn)) {
+        if (canSpawn(data->players->pawns[player])) {
 
             // If there is a pawn on a home tile
             for (int i = 0; i < PAWN_COUNT; ++i) {
@@ -270,10 +276,14 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
         }
     }
 
-    // Check each pawn, if he can advance the given number of tiles
-    for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (canPawnAdvance(pwn[i], data->players, die)) {
-            choices[count++] = &pwn[i];
+    // If all pawns arent on a home tile
+    if (count != 4) {
+
+        // Check each pawn, if he can advance the given number of tiles
+        for (int i = 0; i < PAWN_COUNT; ++i) {
+            if (canPawnAdvance(data->players->pawns[player][i], data->players, die)) {
+                choices[count++] = &data->players->pawns[player][i];
+            }
         }
     }
 
@@ -294,7 +304,13 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
 
     // Receive players choice
     char choice = receiveChoice(data);
-    return choices[choice - '1'];
+
+    // Return the chosen pawn*
+    for (int i = 0; i < count; ++i) {
+        if (choices[i]->symbol == choice) {
+            return choices[i];
+        }
+    }
 }
 
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
@@ -361,16 +377,21 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
 {
     Pawn* kickedPawn = null;
 
-    // Pawn is in the game area
     if (pawn->isActive) {
-        kickedPawn = checkForPawn(data, gamePos[ nextPositionIndex(*pawn, data->activePlayer, rolledNum) ]);
+        // Pawn is in the game area
+        int nextIndex = nextPositionIndex(*pawn, data->activePlayer, rolledNum);
+        if (nextIndex > 0) {
+            kickedPawn = checkForPawn(data, gamePos[ nextIndex ]);
+        }
         advancePawn(pawn, data, rolledNum);
-    } else {    // Pawn is home - to spawn
-        kickedPawn = checkForPawn(data, pawn->pos);
+    } else {
+        // Pawn is home - to spawn
+        kickedPawn = checkForPawn(data, gamePos[pawn->startIndex]);
         spawnPawn(pawn, data);
     }
 
     if (kickedPawn != null) {
+        printf("%c Kicking pawn %c [%d]\n", pawn->symbol, kickedPawn->symbol, kickedPawn->startIndex + kickedPawn->travelled);
         pawnReturnHome(kickedPawn, data);
     }
 }
@@ -396,11 +417,11 @@ void* gameThread(void *args)
         mutex_lock(data->mutex);
 
         while (i == data->players->activePlayer) {
-            printf("Game thread sleep... i = %d, a = %d\n", i, data->players->activePlayer);
+            //printf("Game thread sleep... i = %d, a = %d\n", i, data->players->activePlayer);
             cond_wait(data->wakeServer, data->mutex);
             nextPlayer(data->players);
         }
-        printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
+        //printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
         // TODO check and/or update pawnsOnEnd
 

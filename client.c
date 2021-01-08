@@ -261,6 +261,18 @@ void redrawBoard(Descriptor descriptor, int sockfd) {
             mvprintw(13, 0, "Error reading from socket on AVAILABLE_PAWNS, descriptor size: %d", descriptor.size);
         }
 
+        mvprintw(0, 0, "        . . .        \n"
+               "        .   .        \n"
+               "        .   .        \n"
+               "        .   .        \n"
+               ". . . . .   . . . . .\n"
+               ".                   .\n"
+               ". . . . .   . . . . .\n"
+               "        .   .        \n"
+               "        .   .        \n"
+               "        .   .        \n"
+               "        . . .        \n");
+
         for (int player = 0; player < data->count; ++player) {
             attron(COLOR_PAIR(colorFromPlayerNum(player)));
 
