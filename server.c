@@ -16,8 +16,11 @@ static enum Player p = PLAYER_1;
 
 bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size)
 {
-    if ( write(data->clSockFD[data->players->activePlayer], buffer, size) ) {
-        perror("Error writing to socket in method writeToActivePlayer(ThreadData, void*, size_t)\n");
+    int n;
+    n = write(data->clSockFD[data->players->activePlayer], buffer, size);
+    if (n < 0) {
+        perror("Error writing to socket in method writeToActivePlayer\n");
+
         return false;
     }
     return true;
@@ -59,7 +62,7 @@ void init(PlayerData *data, int playerCount)
 
     for (int player = 0; player < playerCount; ++player) {
         for (int pawn = 0; pawn < PAWN_COUNT; ++pawn) {
-            pawnsStartArea[playerCount][pawn] = &data->pawns[player][pawn];
+            pawnsStartArea[player][pawn] = &data->pawns[player][pawn];
         }
     }
 }
@@ -71,6 +74,23 @@ void startGame(ThreadData *data) {
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
         if (n < 0){
             perror("Writing to socket on START_GAME went wrong. \n");
+        }
+    }
+}
+
+void callRedraw(ThreadData *data) {
+    int n;
+    Descriptor descriptor = {REDRAW, sizeof(PlayerData)};
+    for (int i = 0; i < data->players->count; ++i) {
+        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
+        if (n < 0) {
+            perror("Error sending descriptor on redraw in method callRedraw(ThreadData *data)");
+        }
+
+        sleep(1);
+        n = write(data->clSockFD[i], data->players, descriptor.size);
+        if (n < 0) {
+            perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
         }
     }
 }
@@ -107,7 +127,7 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
 
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, rolledNum);
-    //sleep(1);
+    sleep(1);
 
     writeToActivePlayer(data, msg, strlen(msg));
 
@@ -290,14 +310,13 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
 char receiveChoice(ThreadData *data)
 {
     int n;
-    char choice = '\0';
+    PlayerChoice choice;
 
-    n = read(data->svSockFD, &choice, sizeof(char));
+    n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(PlayerChoice));
     if (n < 0) {
-        perror("Error writing to socket");
+        perror("Error reading choice from player in method receiveChoice(ThreadData *data)");
     }
-
-    return choice;
+    return choice.choice;
 }
 
 Pawn* checkForPawn(PlayerData* data, Position position)
@@ -361,7 +380,7 @@ void* gameThread(void *args)
     ThreadData *data = (ThreadData *) args;
     mutex_lock(data->mutex);
     printf("Server init\n");
-//    startGame(data);
+    startGame(data);
 //    sleep(5);
 
     int n = 0;
@@ -384,6 +403,8 @@ void* gameThread(void *args)
         printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
 
         // TODO check and/or update pawnsOnEnd
+
+        callRedraw(data);
 
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);

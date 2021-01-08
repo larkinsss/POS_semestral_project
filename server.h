@@ -180,5 +180,6 @@ char receiveChoice(ThreadData *data);
 void* gameThread(void *args);
 void* playerThread(void *args);
 Pawn* resolvePawnMovement(ThreadData *data, int die);
+void callRedraw(ThreadData *data);
 
 #endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H

@@ -2,9 +2,10 @@
 #define POS_SEMESTRAL_PROJECT_SHARED_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
-enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN, CONFIRM };
+enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN, CONFIRM, REDRAW};
 enum PawnArea { AREA_START, AREA_END, AREA_GAME };
 enum StartTileIndex { START_TILE_P1 = 33, START_TILE_P2 = 3, START_TILE_P3 = 13, START_TILE_P4 = 23};
 const int MAX_PLAYER_COUNT = 4;
@@ -50,6 +51,10 @@ typedef struct player_data {
     int pawnsOnEnd[4];  // TODO calloc
     Pawn pawns[4][4];   // TODO calloc
 } PlayerData;
+
+typedef struct choice {
+    char choice;
+} PlayerChoice;
 
 /**
  * Coordinates for each tile in the active gameThread area.

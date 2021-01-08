@@ -44,7 +44,7 @@ void drawBoard();
  * Draws board with changes
  * @param data
  */
-void redrawBoard(GAME_DATA data);
+void redrawBoard(Descriptor descriptor, int sockfd);
 
 /**
  *
@@ -60,5 +60,7 @@ void handleDiceRoll(Descriptor descriptor, int sockfd);
 void handleSkipTurn(Descriptor descriptor, int sockfd);
 
 void handlePawns(Descriptor descriptor, int sockfd);
+
+void clearLine(int x, int y);
 
 #endif //POS_SEMESTRAL_PROJECT_CLIENT_H
