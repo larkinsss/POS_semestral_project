@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "cloveceLogic.h"
+#include "server.h"
 #include <pthread.h>
 
 static enum Player p = PLAYER_1;
@@ -238,7 +238,7 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
     enum Player player = data->players->activePlayer;
     Pawn* pwn = &data->players->pawns[player][0];
 
-    Pawn* choices[PAWN_COUNT] = {0};
+    Pawn* choices[4] = {0};
     int count = 0;
 
     if (die == 6) {

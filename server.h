@@ -1,7 +1,3 @@
-//
-// Created by Moyo on 1/4/2021.
-//
-
 #ifndef POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
 #define POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
 
@@ -34,7 +30,10 @@ const int SPACING = 2;
 const int SIZE = 11;
 const int GAME_TILE_COUNT = 40;
 
-typedef struct {
+/**
+ * Des
+ */
+typedef struct descriptor {
     enum Command code;
     size_t size;
 } Descriptor;
@@ -161,21 +160,21 @@ const Position playerPos[4][2][4] = {
  * Array of Pawn*, where each index represents a single tile of game area.
  * The size of the array is GAME_TILE_COUNT
  */
-Pawn* pawnsGameArea[GAME_TILE_COUNT] = {null};
+Pawn* pawnsGameArea[40];
 
 /**
  * Array of Pawn*, where each index represents a single tile of end area.
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][PAWN_COUNT] = { {null}, {null}, {null}, {null} };
+Pawn* pawnsEndArea[4][4];
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.
  * pawnsStartArea[playerIndex][tileIndex]
  * The size of the array is [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsStartArea[4][PAWN_COUNT] = { {null}, {null}, {null}, {null} };
+Pawn* pawnsStartArea[4][4] = { {null}, {null}, {null}, {null} };
 
 /**
  * Rolls a six-sided die

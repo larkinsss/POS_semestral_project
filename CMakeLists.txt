@@ -6,5 +6,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
 find_package(Curses REQUIRED)
 include_directories(${CURSES_INCLUDE_DIR})
 
-add_executable(POS_semestral_project cloveceLogic.c cloveceLogic.h)
-target_link_libraries(POS_semestral_project ${CURSES_LIBRARIES})
+add_executable(runServer server.c server.h)
+add_executable(runClient client.h client.c)
+target_link_libraries(runClient ${CURSES_LIBRARIES})
