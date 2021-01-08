@@ -69,11 +69,16 @@ void init(PlayerData *data, int playerCount)
 
 void startGame(ThreadData *data) {
     int n;
-    Descriptor descriptor = {START_GAME, 255};
+    Descriptor descriptor = {START_GAME, sizeof(PlayerData)};
     for (int i = 0; i < data->players->count; ++i) {
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
         if (n < 0){
             perror("Writing to socket on START_GAME went wrong. \n");
+        }
+
+        n = write(data->clSockFD[i], data->players, descriptor.size);
+        if (n < 0) {
+            perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
         }
     }
 }
@@ -116,21 +121,17 @@ bool checkPawnsInEndArea(PlayerData* playerData)
 
 void sendDiceRoll(ThreadData *data, int rolledNum)
 {
-    char msg[256];
-
     // Sending the type of data
-    Descriptor descriptor = {DICE_ROLL, 255};
+    Descriptor descriptor = { DICE_ROLL, sizeof(int) };
 
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
-    bzero(msg, 255);
-    sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, rolledNum);
     //sleep(1);
 
-    writeToActivePlayer(data, msg, strlen(msg));
+    writeToActivePlayer(data, &rolledNum, descriptor.size);
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
-    sleep(1); // TODO removing this sleep will break it
+    sleep(1); // TODO removing sometimes breaks it
 }
 
 bool awaitConfirmation(int sockfd)
@@ -146,29 +147,29 @@ bool awaitConfirmation(int sockfd)
 }
 
 void sendSkipTurn(ThreadData *threadData, int die) {
-    int n;
-    char msg[255];
-    Descriptor descriptor = {SKIP_TURN, 255};
+    Descriptor descriptor = {SKIP_TURN, 0};
 
     writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
-    bzero(msg, 255);
-    sprintf(msg, "You rolled a %d but you cannot move.", die);
-    //sleep(1);
-
-    writeToActivePlayer(threadData, msg, strlen(msg));
-    sleep(1);
+    sleep(1); // TODO removing sometimes breaks it
 }
 
-bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
+bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount)
 {
     // When the pawn is on home tile
     if (!pawn.isActive) {
         return false;
     }
 
-    advancePawn(&pawn, playerData, tileCount);
-    //pawn.travelled += tileCount;
+    pawn.travelled += tileCount;
+
+    if (pawn.travelled >= GAME_TILE_COUNT) {
+        // If pawn made a whole round and is heading to end area
+        pawn.pos = playerPos[data->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
+    } else {
+        // If pawn is progressing through game area
+        pawn.pos = gamePos[(pawn.startIndex + pawn.travelled) % GAME_TILE_COUNT];
+    }
 
     // If the pawn has already made a round and is going to the end area
     if (pawn.travelled >= GAME_TILE_COUNT) {
@@ -182,8 +183,8 @@ bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
 
     // Makes sure that the pawn doesn't jump on a pawn of the same player
     for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
-            printf("Pawn %c would jump on Pawn %c\n", pawn.symbol, playerData->pawns[playerData->activePlayer][i].symbol);  // TODO remove
+        if (positionEquals(data->pawns[data->activePlayer][i].pos, pawn.pos)) {
+            printf("Pawn %c would jump on Pawn %c\n", pawn.symbol, data->pawns[data->activePlayer][i].symbol);  // TODO remove
             return false;
         }
     }
@@ -206,13 +207,6 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
 // TODO nextPositionIndex <-> advancePawn
 void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
 {
-    /*printf("Pawn %c[%d], advance %d tiles [%d] ", pawn->symbol, pawn->startIndex + pawn->travelled, tileCount, pawn->startIndex + pawn->travelled % GAME_TILE_COUNT);
-    printf("pos -- [%d, %d] -> [%d, %d]\n",
-           gamePos[pawn->startIndex + pawn->travelled].x,
-           gamePos[pawn->startIndex + pawn->travelled].y,
-           gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].x,
-           gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].y
-           );*/
     pawn->travelled += tileCount;
 
     if (pawn->travelled >= GAME_TILE_COUNT) {
@@ -325,6 +319,7 @@ char receiveChoice(ThreadData *data)
     int n;
     char choice = '\0';
 
+    printf("Waiting for choice from player %d\n", data->players->activePlayer);
     n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(choice));
     if (n < 0) {
         perror("Error reading choice from player in method receiveChoice(ThreadData *data)");
@@ -333,7 +328,7 @@ char receiveChoice(ThreadData *data)
 }
 
 void sendGameEnd(ThreadData *data, enum Player winner)
-{
+{   // TODO maybe send just bool, if they won == true
     Descriptor descriptor = {END_GAME, 255};
     int n;
     char message[256] = {0};

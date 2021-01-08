@@ -81,11 +81,11 @@ void movePawn(Pawn *pawn, enum Player player, enum PawnArea area, int index);
 /**
  * Checks if the given pawn can advance game board by the given number of tiles
  * @param pawn
- * @param playerData
+ * @param data
  * @param tileCount by how many tiles should the given pawn move
  * @return true only if the pawn can move the given number of tiles
  */
-bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount);
+bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount);
 
 /**
  * Advance the pawn by the given amount of tiles.
