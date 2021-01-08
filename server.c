@@ -96,24 +96,22 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return rand() % 2 + 5;  // TODO repair num generator
+    return rand() % 6 + 1;
 }
 
 void nextPlayer(PlayerData* playerData) {
-    printf("Player change from %d", playerData->activePlayer);
     playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
-    printf(" to %d\n", playerData->activePlayer);
 }
 
-bool checkPawns(PlayerData* playerData)
+bool checkPawnsInEndArea(PlayerData* playerData)
 {
     for (int i = 0; i < playerData->count; ++i) {
-        if (playerData->pawnsOnEnd[i] >= playerData->count * 2) // TODO change data->count * 2
+        if (playerData->pawnsOnEnd[i] >= PAWN_COUNT)
         {
-            return false;
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
 void sendDiceRoll(ThreadData *data, int rolledNum)
@@ -335,6 +333,31 @@ char receiveChoice(ThreadData *data)
     return choice.choice;
 }
 
+void sendGameEnd(ThreadData *data, enum Player winner)
+{
+    Descriptor descriptor = {END_GAME, 255};
+    int n;
+    char message[256] = {0};
+    sprintf(message, "Game over! Player %d won!", winner + 1);
+    
+    for (int i = 0; i < data->players->count; ++i) {
+        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
+        if (n < 0){
+            perror("Error sending descriptor in sendGameEnd(ThreadData *data)\n");
+        }
+        
+        // Send 'special' message for the winner
+        if (i == winner) {
+            sprintf(message, "Congratulations player %d! You won the match!", winner + 1);
+        }
+
+        n = write(data->clSockFD[i], message, strlen(message));
+        if (n < 0){
+            perror("Error sending message in sendGameEnd(ThreadData *data)\n");
+        }
+    }
+}
+
 Pawn* checkForPawn(PlayerData* data, Position position)
 {
     Pawn* pawn;
@@ -399,31 +422,22 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
 void* gameThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
+    printf("GameThread start\n");
     mutex_lock(data->mutex);
-    printf("Server init\n");
     startGame(data);
-//    sleep(5);
-
-    int n = 0;
-    int die = 0;
-    char msg[256];
 
     // First time init
     data->players->activePlayer = PLAYER_1;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
-    for (int i = data->players->activePlayer; checkPawns(data->players); i = (i + 1) % data->players->count) {
+    for (int i = data->players->activePlayer; !checkPawnsInEndArea(data->players); i = (i + 1) % data->players->count) {
         mutex_lock(data->mutex);
 
-        while (i == data->players->activePlayer) {
-            //printf("Game thread sleep... i = %d, a = %d\n", i, data->players->activePlayer);
+        while (i == data->players->activePlayer) {      // TODO rework - the while loop executes only once - no need for a loop
             cond_wait(data->wakeServer, data->mutex);
             nextPlayer(data->players);
         }
-        //printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
-
-        // TODO check and/or update pawnsOnEnd
 
         callRedraw(data);
 
@@ -431,12 +445,15 @@ void* gameThread(void *args)
         cond_broadcast(data->wakeClient);
     }
 
-    printf("GameThread end!\n");
+    // TODO send results
+    sendGameEnd(data, data->players->activePlayer - 1);
+    
     mutex_lock(data->mutex);
     data->end = true;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
+    printf("GameThread end\n");
     return null;
 }
 
@@ -444,27 +461,29 @@ void* playerThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
     enum Player id = p++;
-    printf("Player %d start!\n", id);
+    printf("PlayerTread %d start!\n", id);
     bool goToSleep = false;
-    int rolledNum = 0;
+    int rolledNum;
+    Pawn* chosenPawn;
 
     while (!data->end) {
         mutex_lock(data->mutex);
 
         while(goToSleep || data->players->activePlayer != id) {
             cond_wait(data->wakeClient, data->mutex);
+            goToSleep = false;
+            
+            // If the game ended, stop this thread
             if (data->end) {
                 mutex_unlock(data->mutex);
                 cond_signal(data->wakeServer);
                 return null;
             }
-            goToSleep = false;
         }
 
         rolledNum = rollDie();
         sendDiceRoll(data, rolledNum);
-
-        Pawn* chosenPawn = resolvePawnMovement(data, rolledNum);
+        chosenPawn = resolvePawnMovement(data, rolledNum);
 
         if (chosenPawn == null) {
             sendSkipTurn(data, rolledNum);
@@ -477,7 +496,7 @@ void* playerThread(void *args)
         cond_signal(data->wakeServer);
     }
 
-    printf("Player %d end\n", id);
+    printf("PlayerThread %d end\n", id);
     return null;
 }
 
@@ -496,7 +515,7 @@ int main(int argc, char *argv[])
     }
 
     int playerCount = atoi(argv[2]);
-    if (playerCount < 1 || playerCount > 4) {
+    if (playerCount < 1 || playerCount > 4) {   // TODO Player count < 2
         fprintf(stderr, "Nubmer of players must be 2, 3 or 4\n");
         return 3;
     }

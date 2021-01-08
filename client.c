@@ -66,7 +66,6 @@ int main(int argc, char *argv[])
      */
 
 
-    GAME_DATA data;
     int reading;
     Descriptor descriptor = {0,0};
     reading = read(sockfd, &descriptor, sizeof(Descriptor));

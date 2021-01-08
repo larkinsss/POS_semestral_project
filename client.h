@@ -4,15 +4,6 @@
 #include "shared.h"
 #include <stdbool.h>
 
-
-typedef struct gameData {
-    PlayerData *playerData;
-    int playerId;
-    volatile bool endGame;
-    int whosTurn;
-    int numberOfPlayers;
-} GAME_DATA;
-
 /**
  * Prints given string at the given position using curses.h
  * Automatically adds spacing to the x-axis

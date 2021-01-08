@@ -1,5 +1,5 @@
-#ifndef POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
-#define POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
+#ifndef POS_SEMESTRAL_PROJECT_SERVER_H
+#define POS_SEMESTRAL_PROJECT_SERVER_H
 
 #include "shared.h"
 #include <stdbool.h>
@@ -40,14 +40,14 @@ typedef struct thread_data{
  * Array of Pawn*, where each index represents a single tile of game area.
  * The size of the array is GAME_TILE_COUNT
  */
-Pawn* pawnsGameArea[40];
+Pawn* pawnsGameArea[40];    // TODO remove probably
 
 /**
  * Array of Pawn*, where each index represents a single tile of end area.
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][4];
+Pawn* pawnsEndArea[4][4];   // TODO remove probably
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.
@@ -130,7 +130,7 @@ void nextPlayer(PlayerData* playerData);
  * @param playerData
  * @return true, if there are 4 pawns in any of the players end areas
  */
-bool checkPawns(PlayerData* playerData);
+bool checkPawnsInEndArea(PlayerData* playerData);
 
 /**
  * Checks if any of the pawns in the given array are on their spawnpoint
@@ -172,7 +172,6 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
 void pawnReturnHome(Pawn *pawn, PlayerData *data);
 
 void startGame(ThreadData *data);
-int gameLogic(PlayerData *gameData);
 void sendDiceRoll(ThreadData *data, int rolledNum);
 void sendSkipTurn(ThreadData *threadData, int die);
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount);
@@ -182,4 +181,4 @@ void* playerThread(void *args);
 Pawn* resolvePawnMovement(ThreadData *data, int die);
 void callRedraw(ThreadData *data);
 
-#endif //POS_SEMESTRAL_PROJECT_CLOVECELOGIC_H
+#endif //POS_SEMESTRAL_PROJECT_SERVER_H
