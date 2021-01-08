@@ -87,7 +87,7 @@ void callRedraw(ThreadData *data) {
             perror("Error sending descriptor on redraw in method callRedraw(ThreadData *data)");
         }
 
-        sleep(1);
+        //sleep(1);
         n = write(data->clSockFD[i], data->players, descriptor.size);
         if (n < 0) {
             perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
@@ -96,7 +96,7 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return rand() % 6 + 1;
+    return rand() % 2 + 5; // TODO from 1 to 6
 }
 
 void nextPlayer(PlayerData* playerData) {
@@ -125,12 +125,12 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
 
     bzero(msg, 255);
     sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, rolledNum);
-    sleep(1);
+    //sleep(1);
 
     writeToActivePlayer(data, msg, strlen(msg));
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
-    sleep(1);
+    sleep(1); // TODO removing this sleep will break it
 }
 
 bool awaitConfirmation(int sockfd)
@@ -154,7 +154,7 @@ void sendSkipTurn(ThreadData *threadData, int die) {
 
     bzero(msg, 255);
     sprintf(msg, "You rolled a %d but you cannot move.", die);
-    sleep(1);
+    //sleep(1);
 
     writeToActivePlayer(threadData, msg, strlen(msg));
     sleep(1);
@@ -167,28 +167,25 @@ bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
         return false;
     }
 
-    pawn.travelled += tileCount;
+    advancePawn(&pawn, playerData, tileCount);
+    //pawn.travelled += tileCount;
 
     // If the pawn has already made a round and is going to the end area
     if (pawn.travelled >= GAME_TILE_COUNT) {
 
         // If he rolled too high of a number to get into the end area
         if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
+            printf("Pawn %c rolled too high\n", pawn.symbol);   // TODO remove
             return false;
         }
     }
 
     // Makes sure that the pawn doesn't jump on a pawn of the same player
-    int hit = 0;
     for (int i = 0; i < PAWN_COUNT; ++i) {
         if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
-            hit++;
+            printf("Pawn %c would jump on Pawn %c\n", pawn.symbol, playerData->pawns[playerData->activePlayer][i].symbol);  // TODO remove
+            return false;
         }
-    }
-
-    // There will always be one hit - the same pawn
-    if (hit > 1) {
-        return false;
     }
 
     return true;
@@ -209,19 +206,21 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
 // TODO nextPositionIndex <-> advancePawn
 void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
 {
-    printf("Pawn %c[%d], advance %d tiles [%d] ", pawn->symbol, pawn->startIndex + pawn->travelled, tileCount, pawn->startIndex + pawn->travelled % GAME_TILE_COUNT);
+    /*printf("Pawn %c[%d], advance %d tiles [%d] ", pawn->symbol, pawn->startIndex + pawn->travelled, tileCount, pawn->startIndex + pawn->travelled % GAME_TILE_COUNT);
     printf("pos -- [%d, %d] -> [%d, %d]\n",
            gamePos[pawn->startIndex + pawn->travelled].x,
            gamePos[pawn->startIndex + pawn->travelled].y,
            gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].x,
            gamePos[(pawn->startIndex + pawn->travelled + tileCount) % GAME_TILE_COUNT].y
-           );
+           );*/
     pawn->travelled += tileCount;
 
     if (pawn->travelled >= GAME_TILE_COUNT) {
+        // If pawn made a whole round and is heading to end area
         pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
         data->pawnsOnEnd[data->activePlayer]++;
     } else {
+        // If pawn is progressing through game area
         pawn->pos = gamePos[(pawn->startIndex + pawn->travelled) % GAME_TILE_COUNT];
     }
 }
@@ -316,7 +315,7 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
     Descriptor descriptor = {AVAILABLE_PAWNS, choiceCount * sizeof(Pawn)};
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
-    sleep(1);
+    //sleep(1);
 
     writeToActivePlayer(data, choices, descriptor.size);
 }
@@ -324,13 +323,13 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
 char receiveChoice(ThreadData *data)
 {
     int n;
-    PlayerChoice choice;
+    char choice = '\0';
 
-    n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(PlayerChoice));
+    n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(choice));
     if (n < 0) {
         perror("Error reading choice from player in method receiveChoice(ThreadData *data)");
     }
-    return choice.choice;
+    return choice;
 }
 
 void sendGameEnd(ThreadData *data, enum Player winner)
@@ -509,8 +508,8 @@ int main(int argc, char *argv[])
     }
 
     int port = atoi(argv[1]);
-    if (port <= 1024) {
-        fprintf(stderr, "Port must be > 1024\n");
+    if (port <= 1024 || port >= 65535) {
+        fprintf(stderr, "Port must be > 1024 and < 65535\n");
         return 2;
     }
 

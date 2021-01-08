@@ -52,10 +52,6 @@ typedef struct player_data {
     Pawn pawns[4][4];   // TODO calloc
 } PlayerData;
 
-typedef struct choice {
-    char choice;
-} PlayerChoice;
-
 /**
  * Coordinates for each tile in the active gameThread area.
  * Tiles are indexed 0 -> 39 with 0 being the leftmost tile at the top moving to the right

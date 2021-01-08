@@ -191,16 +191,16 @@ void handlePawns(Descriptor descriptor, int sockfd) {
                 clearLine(0,13+i);
                 mvprintw(13+i,0,"You can move pawn %c", possibleMoves[i].symbol);
             }
-            PlayerChoice choice;
+            char choice;
             //clearLine(0,13);
             mvprintw(12,0,"Vyber figurku ktorou chces pohnut:" );
-            scanw("%c", &choice.choice);
+            scanw("%c", &choice);
             clearLine(0,13);
             clearLine(0,14);
             clearLine(0,15);
             clearLine(0,16);
-            if (choice.choice >= '1' && choice.choice < '5') {
-                n = write(sockfd, &choice, sizeof(PlayerChoice));
+            if (choice >= '1' && choice < '5') {
+                n = write(sockfd, &choice, sizeof(choice));
                 if(n < 0) {
                     mvprintw(20,0,"Error writing choice to server");
                 }
