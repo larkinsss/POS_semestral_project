@@ -157,18 +157,6 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
     sleep(1); // TODO removing sometimes breaks it
 }
 
-bool awaitConfirmation(int sockfd)
-{
-    Descriptor descriptor = {0 , 0};
-
-    if (read(sockfd, &descriptor, sizeof(Descriptor)) < 0) {
-        perror("Error reading from socket on awaitConfirmation()\n");
-        return false;
-    }
-
-    return descriptor.code == CONFIRM;
-}
-
 void sendSkipTurn(ThreadData *threadData, int die) {
     Descriptor descriptor = {SKIP_TURN, 0};
 
@@ -478,10 +466,10 @@ void* gameThread(void *args)
     for (int i = data->players->activePlayer; !checkPawnsInEndArea(data->players); i = (i + 1) % data->players->count) {
         mutex_lock(data->mutex);
 
-        while (i == data->players->activePlayer) {      // TODO rework - the while loop executes only once - no need for a loop
+        //while (i == data->players->activePlayer) {      // TODO rework - the while loop executes only once - no need for a loop
             cond_wait(data->wakeServer, data->mutex);
             nextPlayer(data->players);
-        }
+        //}
 
         //callRedraw(data);
 

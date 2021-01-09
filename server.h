@@ -65,13 +65,6 @@ Pawn* pawnsStartArea[4][4] = { {null}, {null}, {null}, {null} };
 int rollDie();
 
 /**
- * Awaits a descriptor to arrive at the given socket file descriptor.
- * @param sockfd is a socket file descriptor, where the descriptor will arrive
- * @return true only when the descriptor arrived, and its code == CONFIRM
- */
-bool awaitConfirmation(int sockfd);
-
-/**
  * Moves given pawn, into the given area at the given tile index
  * @param pawn to move
  * @param player owner of the given pawn
@@ -126,6 +119,12 @@ void init(PlayerData *data, int playerCount);
  * @param playerData
  */
 void nextPlayer(PlayerData* playerData);
+
+/**
+ * Changes the member activePlayer to the previous player
+ * @param playerData
+ */
+void previousPlayer(PlayerData* playerData);
 
 /**
  * Checks the ending condition of 4 pawns in the end area

@@ -230,7 +230,7 @@ void drawBoard()
            "        . . .        \n");
 
     for (int player = 0; player < MAX_PLAYER_COUNT; ++player) {
-        attron(COLOR_PAIR(colorFromPlayerNum(player)));
+        attron(COLOR_PAIR(getColor(player)));
 
         // Printout pawns
         movePrintSpacing(playerPos[player][0][0], "1");
@@ -242,7 +242,7 @@ void drawBoard()
         for (int tile = 0; tile < PAWN_COUNT; ++tile) {
             movePrintSpacing(playerPos[player][1][tile], (const char *) (player % 2 == 0 ? "-" : "|"));
         }
-        attroff(COLOR_PAIR(colorFromPlayerNum(player)));
+        attroff(COLOR_PAIR(getColor(player)));
     }
 
     refresh();
@@ -252,24 +252,28 @@ void redrawBoard(Descriptor descriptor, int sockfd) {
     PlayerData *data = (PlayerData *)malloc(descriptor.size);
     receive(sockfd, data, descriptor.size);
 
-    mvprintw(0, 0, "        . . .        \n"
-           "        .   .        \n"
-           "        .   .        \n"
-           "        .   .        \n"
-           ". . . . .   . . . . .\n"
-           ".                   .\n"
-           ". . . . .   . . . . .\n"
-           "        .   .        \n"
-           "        .   .        \n"
-           "        .   .        \n"
-           "        . . .        \n");
+    mvprintw(0, 0,
+        "        . . .        \n"
+        "        .   .        \n"
+        "        .   .        \n"
+        "        .   .        \n"
+        ". . . . .   . . . . .\n"
+        ".                   .\n"
+        ". . . . .   . . . . .\n"
+        "        .   .        \n"
+        "        .   .        \n"
+        "        .   .        \n"
+        "        . . .        \n"
+    );
 
     for (int player = 0; player < MAX_PLAYER_COUNT; ++player) {
         attron(COLOR_PAIR(getColor(player)));
-        // Printout finish tiles
+        // Printout finish tiles and start tiles
         for (int tile = 0; tile < PAWN_COUNT; ++tile) {
+            movePrintSpacing(playerPos[player][0][tile], (const char *) ".");
             movePrintSpacing(playerPos[player][1][tile], (const char *) (player % 2 == 0 ? "-" : "|"));
         }
+        attroff(COLOR_PAIR(getColor(player)));
     }
 
     for (int player = 0; player < data->count; ++player) {
@@ -281,10 +285,9 @@ void redrawBoard(Descriptor descriptor, int sockfd) {
         movePrintSpacing(data->pawns[player][2].pos, "3");
         movePrintSpacing(data->pawns[player][3].pos, "4");
 
-        refresh();
-        attroff(COLOR_PAIR(colorFromPlayerNum(player)));
-
+        attroff(COLOR_PAIR(getColor(player)));
     }
+    refresh();
     free(data);
 }
 
@@ -296,10 +299,5 @@ int movePrintSpacing(Position position, const char* string)
 int getColor(enum Player player)
 {
     return (int) player + 1;
-}
-
-int colorFromPlayerNum(int player)
-{
-    return player + 1;
 }
 
