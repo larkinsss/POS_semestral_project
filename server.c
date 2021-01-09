@@ -66,16 +66,18 @@ void init(PlayerData *data, int playerCount)
     }
 }
 
-void startGame(ThreadData *data) {
+void startGame(ThreadData *data)
+{
     int n;
-    Descriptor descriptor = {START_GAME, sizeof(PlayerData)};
-    for (int i = 0; i < data->players->count; ++i) {
+    Descriptor descriptor = {START_GAME, sizeof(enum Player)};
+    for (enum Player i = PLAYER_1; i < data->players->count; ++i) {
+
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
         if (n < 0){
             perror("Writing to socket on START_GAME went wrong. \n");
         }
 
-        n = write(data->clSockFD[i], data->players, descriptor.size);
+        n = write(data->clSockFD[i], &i, descriptor.size);
         if (n < 0) {
             perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
         }
@@ -86,6 +88,7 @@ void callRedraw(ThreadData *data) {
     int n;
     Descriptor descriptor = {REDRAW, sizeof(PlayerData)};
     for (int i = 0; i < data->players->count; ++i) {
+
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
         if (n < 0) {
             perror("Error sending descriptor on redraw in method callRedraw(ThreadData *data)");
@@ -105,6 +108,10 @@ int rollDie() {
 
 void nextPlayer(PlayerData* playerData) {
     playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
+}
+
+void previousPlayer(PlayerData* playerData) {
+    playerData->activePlayer = (playerData->activePlayer + playerData->count - 1) % playerData->count;
 }
 
 bool checkPawnsInEndArea(PlayerData* playerData)
@@ -352,9 +359,25 @@ char receiveChoice(ThreadData *data)
     return choice;
 }
 
-void sendGameEnd(ThreadData *data, enum Player winner)
-{   // TODO maybe send just bool, if they won == true
-    Descriptor descriptor = {END_GAME, 255};
+void sendGameEnd(ThreadData *data, enum Player win)
+{
+    int n;
+    int winner = win;
+    Descriptor  descriptor = { END_GAME, sizeof(winner) };
+
+    for (int i = 0; i < data->players->count; ++i) {
+        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
+        if (n < 0) {
+            perror("Error sending descriptor in sendGameEnd(ThreadData *data)\n");
+        }
+
+        n = write(data->clSockFD[i], &winner, descriptor.size);
+        if (n < 0) {
+            perror("Error sending message in sendGameEnd(ThreadData *data)\n");
+        }
+    }
+
+    /*Descriptor descriptor = {END_GAME, 255};
     int n;
     char message[256] = {0};
     sprintf(message, "Game over! Player %d won!", winner + 1);
@@ -374,7 +397,7 @@ void sendGameEnd(ThreadData *data, enum Player winner)
         if (n < 0){
             perror("Error sending message in sendGameEnd(ThreadData *data)\n");
         }
-    }
+    }*/
 }
 
 Pawn* checkForPawn(PlayerData* data, Position position)
@@ -445,6 +468,7 @@ void* gameThread(void *args)
     printf("GameThread start\n");
     mutex_lock(data->mutex);
     startGame(data);
+    callRedraw(data);
 
     // First time init
     data->players->activePlayer = PLAYER_1;
@@ -459,14 +483,15 @@ void* gameThread(void *args)
             nextPlayer(data->players);
         }
 
-        callRedraw(data);
+        //callRedraw(data);
 
         mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);
     }
 
     // TODO send results
-    sendGameEnd(data, data->players->activePlayer - 1);
+    previousPlayer(data->players);
+    sendGameEnd(data, data->players->activePlayer);
     
     mutex_lock(data->mutex);
     data->end = true;
@@ -502,6 +527,7 @@ void* playerThread(void *args)
         }
 
         do {
+            callRedraw(data);
             rolledNum = rollDie();
             sendDiceRoll(data, rolledNum);
             chosenPawn = resolvePawnMovement(data, rolledNum);

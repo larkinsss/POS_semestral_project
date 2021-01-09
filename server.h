@@ -49,7 +49,7 @@ Pawn* pawnsGameArea[40];    // TODO remove probably
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][4];   // TODO remove probably
+Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };   // TODO remove probably
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.

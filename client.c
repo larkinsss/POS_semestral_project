@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
     /*
      * TU KONCI FUNKCIONALITA A ZATVARA SA SOCKET
      */
+    endwin();
     close(sockfd);
     return 0;
 }
@@ -94,8 +95,42 @@ void clearPrintw(int x, int y, const char* str)
     mvprintw(y, x, str);
 }
 
+void handleEndGame(Descriptor descriptor, int sockfd, enum Player id)
+{
+    clearLines(0, 12, 9);
+
+    int winner = -1;
+    receive(sockfd, &winner, descriptor.size);
+
+    if (id == winner) {
+        mvprintw(12, 0, "Congratulations, you won!");
+    } else {
+        mvprintw(12, 0, "Game Over!");
+    }
+
+    attron(COLOR_PAIR(getColor(winner)));
+    mvprintw(13, 0, "Player %d ", winner + 1);
+    attroff(COLOR_PAIR(getColor(winner)));
+    printw("won!");
+    refresh();
+}
+
+enum Player handleId(Descriptor descriptor, int sockfd)
+{
+    enum Player id;
+    receive(sockfd, &id, descriptor.size);
+
+    mvprintw(12, 0, "You are ");
+    attron(COLOR_PAIR(getColor(id)));
+    printw("Player %d", id + 1);
+    attroff(COLOR_PAIR(getColor(id)));
+
+    return id;
+}
+
 void gameLogic(int sockfd) {
     int n;
+    enum Player id = -1;
     Descriptor descriptor = {0,0};
 
     do {
@@ -103,31 +138,37 @@ void gameLogic(int sockfd) {
         refresh();
         receive(sockfd, &descriptor, sizeof(Descriptor));
         clearLine(0, 20);
-        clearLine(0, 12);
         refresh();
 
-        switch (descriptor.code) {
+        switch (descriptor.code) {  // TODO Descriptor is copied each time
             case DICE_ROLL:
-                handleDiceRoll(descriptor,sockfd);
+                handleDiceRoll(descriptor,sockfd);  // TODO Descriptor used only for size_t
                 break;
             case SKIP_TURN:
                 handleSkipTurn(descriptor,sockfd);
                 break;
             case AVAILABLE_PAWNS:
+                clearLine(0, 19);
                 handlePawns(descriptor,sockfd);
+                clearLine(0, 13);
                 break;
             case REDRAW:
-            case START_GAME:
                 redrawBoard(descriptor, sockfd);
                 break;
             case END_GAME:
+                handleEndGame(descriptor, sockfd, id);
+                break;
+            case START_GAME:
+                id = handleId(descriptor, sockfd);
                 break;
             default:
                 clearLine(0,21);
                 mvprintw(21, 0, "Descriptor method not recognized %d", descriptor.code);
-                refresh();
         }
+        refresh();
     } while (descriptor.code != END_GAME);
+
+    getch();
 }
 
 void handleDiceRoll(Descriptor descriptor, int sockfd){
@@ -142,9 +183,7 @@ void handleDiceRoll(Descriptor descriptor, int sockfd){
 }
 
 void handleSkipTurn(Descriptor descriptor, int sockfd){
-    char str[33] = { 0 };
-    sprintf(str, "No possible moves - turn skipped");
-    clearPrintw(0, 12, str);
+    mvprintw(19, 0, "No possible moves - turn skipped");
     refresh();
 }
 
