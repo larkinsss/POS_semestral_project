@@ -69,11 +69,16 @@ void init(PlayerData *data, int playerCount)
 
 void startGame(ThreadData *data) {
     int n;
-    Descriptor descriptor = {START_GAME, 255};
+    Descriptor descriptor = {START_GAME, sizeof(PlayerData)};
     for (int i = 0; i < data->players->count; ++i) {
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
         if (n < 0){
             perror("Writing to socket on START_GAME went wrong. \n");
+        }
+
+        n = write(data->clSockFD[i], data->players, descriptor.size);
+        if (n < 0) {
+            perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
         }
     }
 }
@@ -87,7 +92,7 @@ void callRedraw(ThreadData *data) {
             perror("Error sending descriptor on redraw in method callRedraw(ThreadData *data)");
         }
 
-        sleep(1);
+        //sleep(1);
         n = write(data->clSockFD[i], data->players, descriptor.size);
         if (n < 0) {
             perror("Error sending player data on redraw in method callRedraw(ThreadData *data)");
@@ -96,43 +101,37 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return rand() % 6 + 1;
+    return rand() % 2 + 5; // TODO from 1 to 6
 }
 
 void nextPlayer(PlayerData* playerData) {
-    printf("Player change from %d", playerData->activePlayer);
     playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
-    printf(" to %d\n", playerData->activePlayer);
 }
 
-bool checkPawns(PlayerData* playerData)
+bool checkPawnsInEndArea(PlayerData* playerData)
 {
     for (int i = 0; i < playerData->count; ++i) {
-        if (playerData->pawnsOnEnd[i] >= playerData->count * 2) // TODO change data->count * 2
+        if (playerData->pawnsOnEnd[i] >= PAWN_COUNT)
         {
-            return false;
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
 void sendDiceRoll(ThreadData *data, int rolledNum)
 {
-    char msg[256];
-
     // Sending the type of data
-    Descriptor descriptor = {DICE_ROLL, 255};
+    Descriptor descriptor = { DICE_ROLL, sizeof(int) };
 
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
-    bzero(msg, 255);
-    sprintf(msg, "You #%d rolled a %d", data->players->activePlayer, rolledNum);
-    sleep(1);
+    //sleep(1);
 
-    writeToActivePlayer(data, msg, strlen(msg));
+    writeToActivePlayer(data, &rolledNum, descriptor.size);
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
-    sleep(1);
+    sleep(1); // TODO removing sometimes breaks it
 }
 
 bool awaitConfirmation(int sockfd)
@@ -148,21 +147,14 @@ bool awaitConfirmation(int sockfd)
 }
 
 void sendSkipTurn(ThreadData *threadData, int die) {
-    int n;
-    char msg[255];
-    Descriptor descriptor = {SKIP_TURN, 255};
+    Descriptor descriptor = {SKIP_TURN, 0};
 
     writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
-    bzero(msg, 255);
-    sprintf(msg, "You rolled a %d but you cannot move.", die);
-    sleep(1);
-
-    writeToActivePlayer(threadData, msg, strlen(msg));
-    sleep(1);
+    sleep(1); // TODO removing sometimes breaks it
 }
 
-bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
+bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount)
 {
     // When the pawn is on home tile
     if (!pawn.isActive) {
@@ -171,24 +163,28 @@ bool canPawnAdvance(Pawn pawn, PlayerData* playerData, int tileCount)
 
     pawn.travelled += tileCount;
 
+    if (pawn.travelled >= GAME_TILE_COUNT) {
+        // If pawn made a whole round and is heading to end area
+        pawn.pos = playerPos[data->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
+    } else {
+        // If pawn is progressing through game area
+        pawn.pos = gamePos[(pawn.startIndex + pawn.travelled) % GAME_TILE_COUNT];
+    }
+
     // If the pawn has already made a round and is going to the end area
     if (pawn.travelled >= GAME_TILE_COUNT) {
 
         // If he rolled too high of a number to get into the end area
         if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
+            printf("Pawn %c rolled too high\n", pawn.symbol);   // TODO remove
             return false;
-        } else {
-            // If he can get into the end area -- update his position
-            pawn.pos = playerPos[playerData->activePlayer][1][pawn.travelled % GAME_TILE_COUNT];
         }
-    } else {
-        // If the pawn stays in the game area, update his position
-        pawn.pos = gamePos[pawn.startIndex + pawn.travelled % GAME_TILE_COUNT];
     }
 
     // Makes sure that the pawn doesn't jump on a pawn of the same player
     for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (positionEquals(playerData->pawns[playerData->activePlayer][i].pos, pawn.pos)) {
+        if (positionEquals(data->pawns[data->activePlayer][i].pos, pawn.pos)) {
+            printf("Pawn %c would jump on Pawn %c\n", pawn.symbol, data->pawns[data->activePlayer][i].symbol);  // TODO remove
             return false;
         }
     }
@@ -202,9 +198,9 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
     pawn.travelled += tileCount;
 
     if (pawn.travelled >= GAME_TILE_COUNT) {
-        return pawn.travelled % GAME_TILE_COUNT;
+        return -1;    // TODO wrong
     } else {
-        return pawn.startIndex + pawn.travelled % GAME_TILE_COUNT;
+        return (pawn.startIndex + pawn.travelled) % GAME_TILE_COUNT;
     }
 }
 
@@ -214,10 +210,12 @@ void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
     pawn->travelled += tileCount;
 
     if (pawn->travelled >= GAME_TILE_COUNT) {
+        // If pawn made a whole round and is heading to end area
         pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
         data->pawnsOnEnd[data->activePlayer]++;
     } else {
-        pawn->pos = gamePos[pawn->startIndex + pawn->travelled % GAME_TILE_COUNT];
+        // If pawn is progressing through game area
+        pawn->pos = gamePos[(pawn->startIndex + pawn->travelled) % GAME_TILE_COUNT];
     }
 }
 
@@ -251,15 +249,14 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
 {
     PlayerData *playerData = data->players;
     enum Player player = data->players->activePlayer;
-    Pawn* pwn = &data->players->pawns[player][0];
 
-    Pawn* choices[4] = {0};
+    Pawn* choices[4] = { null };
     int count = 0;
 
     if (die == 6) {
 
         // Spawning from home to start
-        if (canSpawn(pwn)) {
+        if (canSpawn(data->players->pawns[player])) {
 
             // If there is a pawn on a home tile
             for (int i = 0; i < PAWN_COUNT; ++i) {
@@ -270,10 +267,14 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
         }
     }
 
-    // Check each pawn, if he can advance the given number of tiles
-    for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (canPawnAdvance(pwn[i], data->players, die)) {
-            choices[count++] = &pwn[i];
+    // If all pawns arent on a home tile
+    if (count != 4) {
+
+        // Check each pawn, if he can advance the given number of tiles
+        for (int i = 0; i < PAWN_COUNT; ++i) {
+            if (canPawnAdvance(data->players->pawns[player][i], data->players, die)) {
+                choices[count++] = &data->players->pawns[player][i];
+            }
         }
     }
 
@@ -294,7 +295,13 @@ Pawn* resolvePawnMovement(ThreadData *data, int die)
 
     // Receive players choice
     char choice = receiveChoice(data);
-    return choices[choice - '1'];
+
+    // Return the chosen pawn*
+    for (int i = 0; i < count; ++i) {
+        if (choices[i]->symbol == choice) {
+            return choices[i];
+        }
+    }
 }
 
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
@@ -302,7 +309,7 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
     Descriptor descriptor = {AVAILABLE_PAWNS, choiceCount * sizeof(Pawn)};
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
-    sleep(1);
+    //sleep(1);
 
     writeToActivePlayer(data, choices, descriptor.size);
 }
@@ -310,13 +317,39 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
 char receiveChoice(ThreadData *data)
 {
     int n;
-    PlayerChoice choice;
+    char choice = '\0';
 
-    n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(PlayerChoice));
+    printf("Waiting for choice from player %d\n", data->players->activePlayer);
+    n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(choice));
     if (n < 0) {
         perror("Error reading choice from player in method receiveChoice(ThreadData *data)");
     }
-    return choice.choice;
+    return choice;
+}
+
+void sendGameEnd(ThreadData *data, enum Player winner)
+{   // TODO maybe send just bool, if they won == true
+    Descriptor descriptor = {END_GAME, 255};
+    int n;
+    char message[256] = {0};
+    sprintf(message, "Game over! Player %d won!", winner + 1);
+    
+    for (int i = 0; i < data->players->count; ++i) {
+        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
+        if (n < 0){
+            perror("Error sending descriptor in sendGameEnd(ThreadData *data)\n");
+        }
+        
+        // Send 'special' message for the winner
+        if (i == winner) {
+            sprintf(message, "Congratulations player %d! You won the match!", winner + 1);
+        }
+
+        n = write(data->clSockFD[i], message, strlen(message));
+        if (n < 0){
+            perror("Error sending message in sendGameEnd(ThreadData *data)\n");
+        }
+    }
 }
 
 Pawn* checkForPawn(PlayerData* data, Position position)
@@ -361,16 +394,21 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
 {
     Pawn* kickedPawn = null;
 
-    // Pawn is in the game area
     if (pawn->isActive) {
-        kickedPawn = checkForPawn(data, gamePos[ nextPositionIndex(*pawn, data->activePlayer, rolledNum) ]);
+        // Pawn is in the game area
+        int nextIndex = nextPositionIndex(*pawn, data->activePlayer, rolledNum);
+        if (nextIndex > 0) {
+            kickedPawn = checkForPawn(data, gamePos[ nextIndex ]);
+        }
         advancePawn(pawn, data, rolledNum);
-    } else {    // Pawn is home - to spawn
-        kickedPawn = checkForPawn(data, pawn->pos);
+    } else {
+        // Pawn is home - to spawn
+        kickedPawn = checkForPawn(data, gamePos[pawn->startIndex]);
         spawnPawn(pawn, data);
     }
 
     if (kickedPawn != null) {
+        printf("%c Kicking pawn %c [%d]\n", pawn->symbol, kickedPawn->symbol, kickedPawn->startIndex + kickedPawn->travelled);
         pawnReturnHome(kickedPawn, data);
     }
 }
@@ -378,31 +416,22 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
 void* gameThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
+    printf("GameThread start\n");
     mutex_lock(data->mutex);
-    printf("Server init\n");
     startGame(data);
-//    sleep(5);
-
-    int n = 0;
-    int die = 0;
-    char msg[256];
 
     // First time init
     data->players->activePlayer = PLAYER_1;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
-    for (int i = data->players->activePlayer; checkPawns(data->players); i = (i + 1) % data->players->count) {
+    for (int i = data->players->activePlayer; !checkPawnsInEndArea(data->players); i = (i + 1) % data->players->count) {
         mutex_lock(data->mutex);
 
-        while (i == data->players->activePlayer) {
-            printf("Game thread sleep... i = %d, a = %d\n", i, data->players->activePlayer);
+        while (i == data->players->activePlayer) {      // TODO rework - the while loop executes only once - no need for a loop
             cond_wait(data->wakeServer, data->mutex);
             nextPlayer(data->players);
         }
-        printf("Game thread woken... i = %d, a = %d\n", i, data->players->activePlayer);
-
-        // TODO check and/or update pawnsOnEnd
 
         callRedraw(data);
 
@@ -410,12 +439,15 @@ void* gameThread(void *args)
         cond_broadcast(data->wakeClient);
     }
 
-    printf("GameThread end!\n");
+    // TODO send results
+    sendGameEnd(data, data->players->activePlayer - 1);
+    
     mutex_lock(data->mutex);
     data->end = true;
     mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
 
+    printf("GameThread end\n");
     return null;
 }
 
@@ -423,27 +455,29 @@ void* playerThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
     enum Player id = p++;
-    printf("Player %d start!\n", id);
+    printf("PlayerTread %d start!\n", id);
     bool goToSleep = false;
-    int rolledNum = 0;
+    int rolledNum;
+    Pawn* chosenPawn;
 
     while (!data->end) {
         mutex_lock(data->mutex);
 
         while(goToSleep || data->players->activePlayer != id) {
             cond_wait(data->wakeClient, data->mutex);
+            goToSleep = false;
+            
+            // If the game ended, stop this thread
             if (data->end) {
                 mutex_unlock(data->mutex);
                 cond_signal(data->wakeServer);
                 return null;
             }
-            goToSleep = false;
         }
 
         rolledNum = rollDie();
         sendDiceRoll(data, rolledNum);
-
-        Pawn* chosenPawn = resolvePawnMovement(data, rolledNum);
+        chosenPawn = resolvePawnMovement(data, rolledNum);
 
         if (chosenPawn == null) {
             sendSkipTurn(data, rolledNum);
@@ -456,7 +490,7 @@ void* playerThread(void *args)
         cond_signal(data->wakeServer);
     }
 
-    printf("Player %d end\n", id);
+    printf("PlayerThread %d end\n", id);
     return null;
 }
 
@@ -469,13 +503,13 @@ int main(int argc, char *argv[])
     }
 
     int port = atoi(argv[1]);
-    if (port <= 1024) {
-        fprintf(stderr, "Port must be > 1024\n");
+    if (port <= 1024 || port >= 65535) {
+        fprintf(stderr, "Port must be > 1024 and < 65535\n");
         return 2;
     }
 
     int playerCount = atoi(argv[2]);
-    if (playerCount < 1 || playerCount > 4) {
+    if (playerCount < 1 || playerCount > 4) {   // TODO Player count < 2
         fprintf(stderr, "Nubmer of players must be 2, 3 or 4\n");
         return 3;
     }

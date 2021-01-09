@@ -1,16 +1,8 @@
 #ifndef POS_SEMESTRAL_PROJECT_CLIENT_H
 #define POS_SEMESTRAL_PROJECT_CLIENT_H
 
-#include <stdbool.h>
 #include "shared.h"
-
-typedef struct gameData {
-    PlayerData *playerData;
-    int playerId;
-    volatile bool endGame;
-    int whosTurn;
-    int numberOfPlayers;
-} GAME_DATA;
+#include <stdbool.h>
 
 /**
  * Prints given string at the given position using curses.h
@@ -49,7 +41,7 @@ void redrawBoard(Descriptor descriptor, int sockfd);
 /**
  *
  */
-void gameLogic(Descriptor descriptor, int sockfd);
+void gameLogic(int sockfd);
 
 /**
  * Method which handles dice roll input from server.
@@ -62,5 +54,7 @@ void handleSkipTurn(Descriptor descriptor, int sockfd);
 void handlePawns(Descriptor descriptor, int sockfd);
 
 void clearLine(int x, int y);
+
+void clearPrintw(int x, int y, const char* str);
 
 #endif //POS_SEMESTRAL_PROJECT_CLIENT_H
