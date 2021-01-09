@@ -21,13 +21,6 @@ int movePrintSpacing(Position position, const char* string);
 int getColor(enum Player player);
 
 /**
- * Gives color pair number for the given players.
- * @param player number of the players [0 -> 3]
- * @return color pair number
- */
-int colorFromPlayerNum(int player);
-
-/**
  * Draws the initial game board.
  */
 void drawBoard();

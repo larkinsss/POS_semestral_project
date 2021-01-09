@@ -21,6 +21,8 @@
 #define thread_create pthread_create
 #define thread_join pthread_join
 
+enum StartTileIndex { START_TILE_P1 = 32, START_TILE_P2 = 2, START_TILE_P3 = 12, START_TILE_P4 = 22};
+
 /**
  * ThreadData
  */
@@ -47,7 +49,7 @@ Pawn* pawnsGameArea[40];    // TODO remove probably
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][4];   // TODO remove probably
+Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };   // TODO remove probably
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.
@@ -61,13 +63,6 @@ Pawn* pawnsStartArea[4][4] = { {null}, {null}, {null}, {null} };
  * @return integer from 1 to 6
  */
 int rollDie();
-
-/**
- * Awaits a descriptor to arrive at the given socket file descriptor.
- * @param sockfd is a socket file descriptor, where the descriptor will arrive
- * @return true only when the descriptor arrived, and its code == CONFIRM
- */
-bool awaitConfirmation(int sockfd);
 
 /**
  * Moves given pawn, into the given area at the given tile index
@@ -126,6 +121,12 @@ void init(PlayerData *data, int playerCount);
 void nextPlayer(PlayerData* playerData);
 
 /**
+ * Changes the member activePlayer to the previous player
+ * @param playerData
+ */
+void previousPlayer(PlayerData* playerData);
+
+/**
  * Checks the ending condition of 4 pawns in the end area
  * @param playerData
  * @return true, if there are 4 pawns in any of the players end areas
@@ -140,11 +141,11 @@ bool checkPawnsInEndArea(PlayerData* playerData);
 bool canSpawn(Pawn *pawns);
 
 /**
- * Calculates index of the next position index of a given pawn, but does not actually modify its position
+ * Calculates index of the next position of a given pawn, but does not actually modify its position
  * @param pawn to be 'moved'
  * @param player whose pawn is it
  * @param tileCount how many tiles should the pawn 'move'
- * @return
+ * @return index of the next position, -1 if pawn will move into the players end area
  */
 int nextPositionIndex(Pawn pawn, enum Player player, int tileCount);
 
@@ -169,7 +170,7 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
  * @param pawn
  * @param data
  */
-void pawnReturnHome(Pawn *pawn, PlayerData *data);
+void pawnReturnHome(Pawn *pawn);
 
 void startGame(ThreadData *data);
 void sendDiceRoll(ThreadData *data, int rolledNum);

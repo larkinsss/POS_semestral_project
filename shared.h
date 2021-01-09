@@ -7,7 +7,6 @@
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
 enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN, CONFIRM, REDRAW };
 enum PawnArea { AREA_START, AREA_END, AREA_GAME };
-enum StartTileIndex { START_TILE_P1 = 32, START_TILE_P2 = 2, START_TILE_P3 = 12, START_TILE_P4 = 22};
 const int MAX_PLAYER_COUNT = 4;
 const int PAWN_COUNT = 4;
 const int SPACING = 2;
@@ -48,8 +47,7 @@ typedef struct gamepawn {
 typedef struct player_data {
     int count;
     enum Player activePlayer;
-    int pawnsOnEnd[4];  // TODO calloc
-    Pawn pawns[4][4];   // TODO calloc
+    Pawn pawns[4][4];   // TODO calloc probably cannot be done, since we send PlayerData through sockets
 } PlayerData;
 
 /**
