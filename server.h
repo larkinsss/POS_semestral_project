@@ -21,12 +21,12 @@
 #define thread_create pthread_create
 #define thread_join pthread_join
 
-enum StartTileIndex { START_TILE_P1 = 32, START_TILE_P2 = 2, START_TILE_P3 = 12, START_TILE_P4 = 22};
+static enum Player playerCounter = PLAYER_1;
 
 /**
  * ThreadData
  */
-typedef struct thread_data{
+typedef struct thread_data {
     PlayerData* players;
     bool end;
 
@@ -39,17 +39,11 @@ typedef struct thread_data{
 } ThreadData;
 
 /**
- * Array of Pawn*, where each index represents a single tile of game area.
- * The size of the array is GAME_TILE_COUNT
- */
-Pawn* pawnsGameArea[40];    // TODO remove probably
-
-/**
  * Array of Pawn*, where each index represents a single tile of end area.
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };   // TODO remove probably
+Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.
@@ -96,7 +90,7 @@ void advancePawn(Pawn *pawn, PlayerData* data, int tileCount);
  * @param position to check
  * @return a pawn with the given position, if not found returns null
  */
-Pawn* checkForPawn(PlayerData* data, Position position);
+Pawn* isPawnOnPos(PlayerData* data, Position position);
 
 /**
  * Write 'size' bytes of buffer to the active player using 'write()'.
@@ -105,7 +99,7 @@ Pawn* checkForPawn(PlayerData* data, Position position);
  * @param size number of bytes to send from buffer
  * @return true only if the buffer was written successfully, false otherwise
  */
-bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
+void writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
 
 /**
  * Initializes player data
@@ -131,7 +125,7 @@ void previousPlayer(PlayerData* playerData);
  * @param playerData
  * @return true, if there are 4 pawns in any of the players end areas
  */
-bool checkPawnsInEndArea(PlayerData* playerData);
+bool checkGameEnd(PlayerData* playerData);
 
 /**
  * Checks if any of the pawns in the given array are on their spawnpoint
@@ -147,7 +141,7 @@ bool canSpawn(Pawn *pawns);
  * @param tileCount how many tiles should the pawn 'move'
  * @return index of the next position, -1 if pawn will move into the players end area
  */
-int nextPositionIndex(Pawn pawn, enum Player player, int tileCount);
+int nextPositionIndex(Pawn pawn, int tileCount);
 
 /**
  * Spawns given pawn onto the game area
@@ -172,14 +166,14 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
  */
 void pawnReturnHome(Pawn *pawn);
 
-void startGame(ThreadData *data);
+void sendGameStart(ThreadData *data);
 void sendDiceRoll(ThreadData *data, int rolledNum);
-void sendSkipTurn(ThreadData *threadData, int die);
+void sendSkipTurn(ThreadData *threadData);
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount);
 char receiveChoice(ThreadData *data);
+Pawn* getPawnChoice(ThreadData *data, int die);
+void sendRedraw(ThreadData *data);
 void* gameThread(void *args);
 void* playerThread(void *args);
-Pawn* resolvePawnMovement(ThreadData *data, int die);
-void callRedraw(ThreadData *data);
 
 #endif //POS_SEMESTRAL_PROJECT_SERVER_H

@@ -4,6 +4,8 @@
 #include "shared.h"
 #include <stdbool.h>
 
+const int SPACING = 2;
+
 /**
  * Prints given string at the given position using curses.h
  * Automatically adds spacing to the x-axis
@@ -21,15 +23,10 @@ int movePrintSpacing(Position position, const char* string);
 int getColor(enum Player player);
 
 /**
- * Draws the initial game board.
- */
-void drawBoard();
-
-/**
  * Draws board with changes
  * @param data
  */
-void redrawBoard(Descriptor descriptor, int sockfd);
+void redrawBoard(int sockfd, size_t size);
 
 /**
  *
@@ -40,14 +37,20 @@ void gameLogic(int sockfd);
  * Method which handles dice roll input from server.
  * Prints out rolled dice.
  */
-void handleDiceRoll(Descriptor descriptor, int sockfd);
+void handleDiceRoll(int sockfd, size_t size);
 
-void handleSkipTurn(Descriptor descriptor, int sockfd);
+void handleSkipTurn();
 
-void handlePawns(Descriptor descriptor, int sockfd);
+void handlePawns(int sockfd, size_t size);
 
 void clearLine(int x, int y);
 
 void clearPrintw(int x, int y, const char* str);
+
+bool receive(int socketfd, void* buffer, size_t size);
+
+void clearLines(int x, int y, int count);
+
+void handleEndGame(int sockfd, size_t size, enum Player id);
 
 #endif //POS_SEMESTRAL_PROJECT_CLIENT_H
