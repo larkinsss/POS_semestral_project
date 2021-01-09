@@ -146,6 +146,7 @@ void handleSkipTurn(Descriptor descriptor, int sockfd){
     sprintf(str, "No possible moves - turn skipped");
     clearPrintw(0, 12, str);
     refresh();
+    sleep(1);
 }
 
 void handlePawns(Descriptor descriptor, int sockfd) {
@@ -158,20 +159,27 @@ void handlePawns(Descriptor descriptor, int sockfd) {
     for (int i = 0; i < count; ++i) {
         printw("%c ", possibleMoves[i].symbol);
     }
-    mvprintw(14, 0, "Choose a pawn that you want to move: ");
-    refresh();
 
     char choice;
-    scanw("%c", &choice);
-    clearLines(0, 14, 5);
+    bool correctInput = false;
 
-    if (choice >= '1' && choice < '5') {    // TODO do while cyklu, pokial si nevyberie normalnu moznost
-        count = write(sockfd, &choice, sizeof(choice));
-        if(count < 0) {
-            mvprintw(21,0,"Error writing choice to server");
+    while (!correctInput) {
+        clearLine(0,14);
+        mvprintw(14, 0, "Choose a pawn that you want to move: ");
+        refresh();
+        scanw("%c", &choice);
+        for (int i = 0; i < count; ++i) {
+            if (choice == possibleMoves[i].symbol) {
+                correctInput = true;
+                count = write(sockfd, &choice, sizeof(choice));
+                if(count < 0) {
+                    mvprintw(21,0,"Error writing choice to server");
+                }
+            }
         }
     }
 
+    clearLines(0, 14, 5);
     free(possibleMoves);
     refresh();
 }

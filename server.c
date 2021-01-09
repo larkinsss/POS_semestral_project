@@ -101,7 +101,7 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return rand() % 2 + 5; // TODO from 1 to 6
+    return 1 + rand() % 6; // TODO from 1 to 6
 }
 
 void nextPlayer(PlayerData* playerData) {
@@ -388,6 +388,7 @@ void pawnReturnHome(Pawn *pawn, PlayerData *data)
             pawnsStartArea[PLAYER_4][pawn->symbol - '1'] = pawn;
     }
     pawn->isActive = false;
+    pawn->travelled = 0;
 }
 
 void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
