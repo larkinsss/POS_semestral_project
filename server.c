@@ -20,7 +20,6 @@ bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size)
     n = write(data->clSockFD[data->players->activePlayer], buffer, size);
     if (n < 0) {
         perror("Error writing to socket in method writeToActivePlayer\n");
-
         return false;
     }
     return true;
@@ -30,7 +29,7 @@ void init(PlayerData *data, int playerCount)
 {
     srand(time(NULL));
     *data = (PlayerData) {
-        playerCount, -1, // TODO dynamically allocate this shit i dont know how dont ask me
+        playerCount, -1,
         {
             {
                 (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
@@ -103,7 +102,7 @@ void callRedraw(ThreadData *data) {
 }
 
 int rollDie() {
-    return 1 + rand() % 6; // TODO from 1 to 6
+    return 1 + rand() % 6;
 }
 
 void nextPlayer(PlayerData* playerData) {
@@ -154,7 +153,7 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
     writeToActivePlayer(data, &rolledNum, descriptor.size);
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
-    sleep(1); // TODO removing sometimes breaks it
+    //sleep(1); // TODO removing sometimes breaks it
 }
 
 void sendSkipTurn(ThreadData *threadData, int die) {
@@ -267,7 +266,6 @@ bool canSpawn(Pawn *pawns)
 
 Pawn* resolvePawnMovement(ThreadData *data, int die)
 {
-    PlayerData *playerData = data->players;
     enum Player player = data->players->activePlayer;
 
     Pawn* choices[4] = { null };
@@ -364,28 +362,6 @@ void sendGameEnd(ThreadData *data, enum Player win)
             perror("Error sending message in sendGameEnd(ThreadData *data)\n");
         }
     }
-
-    /*Descriptor descriptor = {END_GAME, 255};
-    int n;
-    char message[256] = {0};
-    sprintf(message, "Game over! Player %d won!", winner + 1);
-    
-    for (int i = 0; i < data->players->count; ++i) {
-        n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
-        if (n < 0){
-            perror("Error sending descriptor in sendGameEnd(ThreadData *data)\n");
-        }
-        
-        // Send 'special' message for the winner
-        if (i == winner) {
-            sprintf(message, "Congratulations player %d! You won the match!", winner + 1);
-        }
-
-        n = write(data->clSockFD[i], message, strlen(message));
-        if (n < 0){
-            perror("Error sending message in sendGameEnd(ThreadData *data)\n");
-        }
-    }*/
 }
 
 Pawn* checkForPawn(PlayerData* data, Position position)
@@ -477,7 +453,6 @@ void* gameThread(void *args)
         cond_broadcast(data->wakeClient);
     }
 
-    // TODO send results
     previousPlayer(data->players);
     sendGameEnd(data, data->players->activePlayer);
     
@@ -515,7 +490,6 @@ void* playerThread(void *args)
         }
 
         do {
-            callRedraw(data);
             rolledNum = rollDie();
             sendDiceRoll(data, rolledNum);
             chosenPawn = resolvePawnMovement(data, rolledNum);
@@ -525,6 +499,7 @@ void* playerThread(void *args)
             } else {
                 actOnPawn(chosenPawn, data->players, rolledNum);
             }
+            callRedraw(data);
         } while (rolledNum == 6);
 
         goToSleep = true;
