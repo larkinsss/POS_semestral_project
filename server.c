@@ -31,7 +31,6 @@ void init(PlayerData *data, int playerCount)
     srand(time(NULL));
     *data = (PlayerData) {
         playerCount, -1, // TODO dynamically allocate this shit i dont know how dont ask me
-        { 0, 0, 0, 0 },
         {
             {
                 (Pawn) {playerPos[0][0][0], START_TILE_P1, 0, '1', false},
@@ -110,12 +109,29 @@ void nextPlayer(PlayerData* playerData) {
 
 bool checkPawnsInEndArea(PlayerData* playerData)
 {
-    for (int i = 0; i < playerData->count; ++i) {
-        if (playerData->pawnsOnEnd[i] >= PAWN_COUNT)
-        {
+    bool allPawnsInEnd;
+
+    // Go through each players end area
+    for (int player = 0; player < playerData->count; ++player) {
+        allPawnsInEnd = true;
+
+        // Check each end tile
+        for (int pawn = 0; pawn < PAWN_COUNT; ++pawn) {
+
+            // If a pawn is missing from end area - false
+            if (pawnsEndArea[player][pawn] == null) {
+                allPawnsInEnd = false;
+                break;
+            }
+        }
+
+        // If all pawns were on end tiles
+        if (allPawnsInEnd) {
             return true;
         }
     }
+
+    // No player has all his pawns on end tiles
     return false;
 }
 
@@ -192,7 +208,6 @@ bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount)
     return true;
 }
 
-// TODO advancePawn <-> nextPositionIndex
 int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
 {
     pawn.travelled += tileCount;
@@ -205,7 +220,6 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
     }
 }
 
-// TODO nextPositionIndex <-> advancePawn
 void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
 {
     pawn->travelled += tileCount;
@@ -213,7 +227,17 @@ void advancePawn(Pawn *pawn, PlayerData* data, int tileCount)
     if (pawn->travelled >= GAME_TILE_COUNT) {
         // If pawn made a whole round and is heading to end area
         pawn->pos = playerPos[data->activePlayer][1][pawn->travelled % GAME_TILE_COUNT];
-        data->pawnsOnEnd[data->activePlayer]++;
+
+        // Check if the pawn wasn't already in the end area
+        for (int i = 0; i < PAWN_COUNT; ++i) {
+            if (pawnsEndArea[data->activePlayer][i] == pawn) {
+                // If he was - remove him from old position
+                pawnsEndArea[data->activePlayer][i] = null;
+                break;
+            }
+        }
+        // Add pawn to a position in end area
+        pawnsEndArea[data->activePlayer][pawn->travelled % GAME_TILE_COUNT] = pawn;
     } else {
         // If pawn is progressing through game area
         pawn->pos = gamePos[(pawn->startIndex + pawn->travelled) % GAME_TILE_COUNT];

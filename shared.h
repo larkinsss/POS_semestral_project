@@ -47,8 +47,7 @@ typedef struct gamepawn {
 typedef struct player_data {
     int count;
     enum Player activePlayer;
-    int pawnsOnEnd[4];  // TODO calloc
-    Pawn pawns[4][4];   // TODO calloc
+    Pawn pawns[4][4];   // TODO calloc probably cannot be done, since we send PlayerData through sockets
 } PlayerData;
 
 /**
