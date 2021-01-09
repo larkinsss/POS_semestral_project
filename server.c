@@ -30,7 +30,7 @@ void init(PlayerData *data, int playerCount)
 {
     srand(time(NULL));
     *data = (PlayerData) {
-        playerCount, -1, // TODO
+        playerCount, -1, // TODO dynamically allocate this shit i dont know how dont ask me
         { 0, 0, 0, 0 },
         {
             {
@@ -198,7 +198,8 @@ int nextPositionIndex(Pawn pawn, enum Player player, int tileCount)
     pawn.travelled += tileCount;
 
     if (pawn.travelled >= GAME_TILE_COUNT) {
-        return -1;    // TODO wrong
+        // If pawn is going to the end area
+        return -1;
     } else {
         return (pawn.startIndex + pawn.travelled) % GAME_TILE_COUNT;
     }
@@ -238,7 +239,7 @@ void spawnPawn(Pawn *pawn, PlayerData *playerData)
 bool canSpawn(Pawn *pawns)
 {
     for (int i = 0; i < PAWN_COUNT; ++i) {
-        if (positionEquals(gamePos[pawns[i].startIndex], pawns[i].pos)) {   // TODO couldn't this use pawn.travelled == 0
+        if (pawns[i].isActive && pawns[i].travelled == 0) {
             return false;
         }
     }
@@ -368,9 +369,9 @@ Pawn* checkForPawn(PlayerData* data, Position position)
     return null;
 }
 
-void pawnReturnHome(Pawn *pawn, PlayerData *data)
+void pawnReturnHome(Pawn *pawn)
 {
-    switch (pawn->startIndex) { // TODO weak - make better
+    switch (pawn->startIndex) { // TODO maybe store player instead of index?
         case START_TILE_P1:
             movePawn(pawn, PLAYER_1, AREA_START, pawn->symbol - '1');
             pawnsStartArea[PLAYER_1][pawn->symbol - '1'] = pawn;
@@ -388,6 +389,7 @@ void pawnReturnHome(Pawn *pawn, PlayerData *data)
             pawnsStartArea[PLAYER_4][pawn->symbol - '1'] = pawn;
     }
     pawn->isActive = false;
+    pawn->travelled = 0;
 }
 
 void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
@@ -409,7 +411,7 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
 
     if (kickedPawn != null) {
         printf("%c Kicking pawn %c [%d]\n", pawn->symbol, kickedPawn->symbol, kickedPawn->startIndex + kickedPawn->travelled);
-        pawnReturnHome(kickedPawn, data);
+        pawnReturnHome(kickedPawn);
     }
 }
 
@@ -475,15 +477,17 @@ void* playerThread(void *args)
             }
         }
 
-        rolledNum = rollDie();
-        sendDiceRoll(data, rolledNum);
-        chosenPawn = resolvePawnMovement(data, rolledNum);
+        do {
+            rolledNum = rollDie();
+            sendDiceRoll(data, rolledNum);
+            chosenPawn = resolvePawnMovement(data, rolledNum);
 
-        if (chosenPawn == null) {
-            sendSkipTurn(data, rolledNum);
-        } else {
-            actOnPawn(chosenPawn, data->players, rolledNum);
-        }
+            if (chosenPawn == null) {
+                sendSkipTurn(data, rolledNum);
+            } else {
+                actOnPawn(chosenPawn, data->players, rolledNum);
+            }
+        } while (rolledNum == 6);
 
         goToSleep = true;
         mutex_unlock(data->mutex);
@@ -509,7 +513,7 @@ int main(int argc, char *argv[])
     }
 
     int playerCount = atoi(argv[2]);
-    if (playerCount < 1 || playerCount > 4) {   // TODO Player count < 2
+    if (playerCount < 2 || playerCount > 4) {
         fprintf(stderr, "Nubmer of players must be 2, 3 or 4\n");
         return 3;
     }
@@ -537,7 +541,7 @@ int main(int argc, char *argv[])
 
         port++;
         serv_addr.sin_port = htons(port);
-        printf("New port: %d\n", port); // TODO
+        printf("New port: %d\n", port); // TODO remove or make it look better
 
         if (bind(svSockFD, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             return 5;

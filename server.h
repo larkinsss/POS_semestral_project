@@ -21,6 +21,8 @@
 #define thread_create pthread_create
 #define thread_join pthread_join
 
+enum StartTileIndex { START_TILE_P1 = 32, START_TILE_P2 = 2, START_TILE_P3 = 12, START_TILE_P4 = 22};
+
 /**
  * ThreadData
  */
@@ -140,11 +142,11 @@ bool checkPawnsInEndArea(PlayerData* playerData);
 bool canSpawn(Pawn *pawns);
 
 /**
- * Calculates index of the next position index of a given pawn, but does not actually modify its position
+ * Calculates index of the next position of a given pawn, but does not actually modify its position
  * @param pawn to be 'moved'
  * @param player whose pawn is it
  * @param tileCount how many tiles should the pawn 'move'
- * @return
+ * @return index of the next position, -1 if pawn will move into the players end area
  */
 int nextPositionIndex(Pawn pawn, enum Player player, int tileCount);
 
@@ -169,7 +171,7 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
  * @param pawn
  * @param data
  */
-void pawnReturnHome(Pawn *pawn, PlayerData *data);
+void pawnReturnHome(Pawn *pawn);
 
 void startGame(ThreadData *data);
 void sendDiceRoll(ThreadData *data, int rolledNum);
