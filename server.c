@@ -2,13 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <curses.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "server.h"
 #include <pthread.h>
 
@@ -62,12 +58,6 @@ void nextPlayer(PlayerData* playerData)
     playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
 }
 
-// TODO remove
-void previousPlayer(PlayerData* playerData)
-{
-    playerData->activePlayer = (playerData->activePlayer + playerData->count - 1) % playerData->count;
-}
-
 void writeToActivePlayer(ThreadData* data, void* buffer, size_t size)
 {
     int n = write(data->clSockFD[data->players->activePlayer], buffer, size);
@@ -118,7 +108,7 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
     writeToActivePlayer(data, &num, descriptor.size);
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
-    //sleep(1); // TODO removing sometimes breaks it
+    //sleep(1);
 }
 
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
@@ -140,7 +130,7 @@ void sendSkipTurn(ThreadData *threadData)
 
     writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
-    //sleep(1); // TODO removing sometimes breaks it
+    //sleep(1);
 }
 
 void sendGameStart(ThreadData *data)
@@ -227,7 +217,6 @@ bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount)
 
         // If he rolled too high of a number to get into the end area
         if (pawn.travelled % GAME_TILE_COUNT >= PAWN_COUNT) {
-            printf("Pawn %c rolled too high\n", pawn.symbol);   // TODO remove
             return false;
         }
     }
@@ -235,7 +224,6 @@ bool canPawnAdvance(Pawn pawn, PlayerData* data, int tileCount)
     // Makes sure that the pawn doesn't jump on a pawn of the same player
     for (int i = 0; i < PAWN_COUNT; ++i) {
         if (positionEquals(data->pawns[data->activePlayer][i].pos, pawn.pos)) {
-            printf("Pawn %c would jump on Pawn %c\n", pawn.symbol, data->pawns[data->activePlayer][i].symbol);  // TODO remove
             return false;
         }
     }
@@ -363,6 +351,8 @@ Pawn* handlePawnChoice(ThreadData *data, int die)
             return choices[i];
         }
     }
+
+    return null;
 }
 
 char receiveChoice(ThreadData *data)
@@ -420,7 +410,6 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum)
     }
 
     if (kickedPawn != null) {
-        printf("%c Kicking pawn %c [%d]\n", pawn->symbol, kickedPawn->symbol, startPosIndex[pawn->player] + kickedPawn->travelled);  // TODO remove
         pawnReturnHome(kickedPawn);
     }
 }
@@ -529,8 +518,8 @@ int main(int argc, char *argv[])
     }
 
     int playerCount = atoi(argv[2]);
-    if (playerCount < 1 || playerCount > 4) { // TODO
-        fprintf(stderr, "Nubmer of players must be 2, 3 or 4\n");
+    if (playerCount < 2 || playerCount > 4) {
+        fprintf(stderr, "Number of players must be 2, 3 or 4\n");
         return 3;
     }
 

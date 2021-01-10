@@ -186,7 +186,7 @@ void gameLogic(int sockfd)
                 handleDiceRoll(sockfd, descriptor.size);
                 break;
             case SKIP_TURN:
-                handleSkipTurn(sockfd, descriptor.size);
+                handleSkipTurn();
                 break;
             case AVAILABLE_PAWNS:
                 clearLine(0, 19);
