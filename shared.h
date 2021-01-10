@@ -5,19 +5,18 @@
 #include <stddef.h>
 
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
-enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, SELECTED_PAWN, CONFIRM, REDRAW };
+enum Code { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, REDRAW };
 enum PawnArea { AREA_START, AREA_END, AREA_GAME };
+
+const int GAME_TILE_COUNT = 40;
 const int MAX_PLAYER_COUNT = 4;
 const int PAWN_COUNT = 4;
-const int SPACING = 2;
-const int SIZE = 11;
-const int GAME_TILE_COUNT = 40;
 
 /**
  * Descriptor - describes the type of next network write
  */
 typedef struct descriptor {
-    enum Command code;
+    enum Code code;
     size_t size;
 } Descriptor;
 
@@ -35,7 +34,7 @@ typedef struct coordinates {
  */
 typedef struct gamepawn {
     Position pos;
-    int startIndex;
+    enum Player player;
     int travelled;
     char symbol;
     bool isActive;
@@ -47,7 +46,7 @@ typedef struct gamepawn {
 typedef struct player_data {
     int count;
     enum Player activePlayer;
-    Pawn pawns[4][4];   // TODO calloc probably cannot be done, since we send PlayerData through sockets
+    Pawn pawns[4][4];
 } PlayerData;
 
 /**
@@ -122,6 +121,11 @@ const Position playerPos[4][2][4] = {
                 { {9, 5}, {8, 5}, {7, 5}, {6, 5} }
         }
 };
+
+/**
+ * gamePos[index] for starting position in the game area for each player.
+ */
+const int startPosIndex[4] = { 32, 2, 12, 22 };
 
 /**
  * Checks if the given positions match

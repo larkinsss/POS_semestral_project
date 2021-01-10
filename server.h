@@ -21,17 +21,16 @@
 #define thread_create pthread_create
 #define thread_join pthread_join
 
-enum StartTileIndex { START_TILE_P1 = 32, START_TILE_P2 = 2, START_TILE_P3 = 12, START_TILE_P4 = 22};
-
 /**
  * ThreadData
  */
-typedef struct thread_data{
+typedef struct thread_data {
     PlayerData* players;
-    bool end;
+    bool gameEnd;
+    int lastRolledNum;
+    enum Player playerCounter;
 
     int* clSockFD;
-    int svSockFD;
 
     Mutex* mutex;
     Cond* wakeServer;
@@ -39,17 +38,11 @@ typedef struct thread_data{
 } ThreadData;
 
 /**
- * Array of Pawn*, where each index represents a single tile of game area.
- * The size of the array is GAME_TILE_COUNT
- */
-Pawn* pawnsGameArea[40];    // TODO remove probably
-
-/**
  * Array of Pawn*, where each index represents a single tile of end area.
  * pawnsEndArea[playerIndex][tileIndex]
  * The size of the array [playerCount][PAWN_COUNT]
  */
-Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };   // TODO remove probably
+Pawn* pawnsEndArea[4][4] = { {null}, {null}, {null}, {null} };
 
 /**
  * Array of Pawn*, where each index represents a single tile of start area.
@@ -96,7 +89,7 @@ void advancePawn(Pawn *pawn, PlayerData* data, int tileCount);
  * @param position to check
  * @return a pawn with the given position, if not found returns null
  */
-Pawn* checkForPawn(PlayerData* data, Position position);
+Pawn* isPawnOnPos(PlayerData* data, Position position);
 
 /**
  * Write 'size' bytes of buffer to the active player using 'write()'.
@@ -105,14 +98,14 @@ Pawn* checkForPawn(PlayerData* data, Position position);
  * @param size number of bytes to send from buffer
  * @return true only if the buffer was written successfully, false otherwise
  */
-bool writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
+void writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
 
 /**
  * Initializes player data
  * @param data
  * @param playerCount
  */
-void init(PlayerData *data, int playerCount);
+void gameInit(PlayerData *data, int playerCount);
 
 /**
  * Changes the member activePlayer to the next player
@@ -131,7 +124,7 @@ void previousPlayer(PlayerData* playerData);
  * @param playerData
  * @return true, if there are 4 pawns in any of the players end areas
  */
-bool checkPawnsInEndArea(PlayerData* playerData);
+bool checkGameEnd(PlayerData* playerData);
 
 /**
  * Checks if any of the pawns in the given array are on their spawnpoint
@@ -147,7 +140,7 @@ bool canSpawn(Pawn *pawns);
  * @param tileCount how many tiles should the pawn 'move'
  * @return index of the next position, -1 if pawn will move into the players end area
  */
-int nextPositionIndex(Pawn pawn, enum Player player, int tileCount);
+int nextPositionIndex(Pawn pawn, int tileCount);
 
 /**
  * Spawns given pawn onto the game area
@@ -172,14 +165,56 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
  */
 void pawnReturnHome(Pawn *pawn);
 
-void startGame(ThreadData *data);
+/**
+ * Sends game start code to all the clients along with their player ID
+ * @param data
+ */
+void sendGameStart(ThreadData *data);
+
+/**
+ * Sends rolledNum to the active player
+ * @param data
+ * @param rolledNum number to be sent to the active player
+ */
 void sendDiceRoll(ThreadData *data, int rolledNum);
-void sendSkipTurn(ThreadData *threadData, int die);
+
+/**
+ * Sends skip turn code to the active player
+ * @param threadData
+ */
+void sendSkipTurn(ThreadData *threadData);
+
+/**
+ * Sends an array of pawns for the active player to choose from
+ * @param data
+ * @param choices array of pawns to be sent
+ * @param choiceCount size of the array
+ */
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount);
+
+/**
+ * Receives a choice from the active player
+ * @param data
+ * @return players' choice - one of '1', '2', '3', '4'
+ */
 char receiveChoice(ThreadData *data);
+
+/**
+ * Calculates which pawns can the player move, then sends these choices to the player.
+ * After a response from the player was received, returns the chosen pawn*
+ * @param data
+ * @param die what did the player roll
+ * @return a pawn* that the player chose, null if player couldn't move with any of his pawns
+ */
+Pawn* handlePawnChoice(ThreadData *data, int die);
+
+/**
+ * Sends redraw code along with player data to all players
+ * @param data
+ */
+void sendRedraw(ThreadData *data);
+
 void* gameThread(void *args);
 void* playerThread(void *args);
-Pawn* resolvePawnMovement(ThreadData *data, int die);
-void callRedraw(ThreadData *data);
 
 #endif //POS_SEMESTRAL_PROJECT_SERVER_H
