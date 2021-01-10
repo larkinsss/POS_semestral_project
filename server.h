@@ -114,12 +114,6 @@ void gameInit(PlayerData *data, int playerCount);
 void nextPlayer(PlayerData* playerData);
 
 /**
- * Changes the member activePlayer to the previous player
- * @param playerData
- */
-void previousPlayer(PlayerData* playerData);
-
-/**
  * Checks the ending condition of 4 pawns in the end area
  * @param playerData
  * @return true, if there are 4 pawns in any of the players end areas
