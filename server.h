@@ -28,7 +28,8 @@ static enum Player playerCounter = PLAYER_1;
  */
 typedef struct thread_data {
     PlayerData* players;
-    bool end;
+    bool gameEnd;
+    int lastRolledNum;
 
     int* clSockFD;
     int svSockFD;
@@ -106,7 +107,7 @@ void writeToActivePlayer(ThreadData* data, void* buffer, size_t size);
  * @param data
  * @param playerCount
  */
-void init(PlayerData *data, int playerCount);
+void gameInit(PlayerData *data, int playerCount);
 
 /**
  * Changes the member activePlayer to the next player
@@ -166,13 +167,60 @@ void actOnPawn(Pawn *pawn, PlayerData *data, int rolledNum);
  */
 void pawnReturnHome(Pawn *pawn);
 
+/**
+ * Sends game start code to all the clients along with their player ID
+ * @param data
+ */
 void sendGameStart(ThreadData *data);
+
+/**
+ * Sends rolledNum to the active player
+ * @param data
+ * @param rolledNum number to be sent to the active player
+ */
 void sendDiceRoll(ThreadData *data, int rolledNum);
+
+/**
+ * Sends skip turn code to the active player
+ * @param threadData
+ */
 void sendSkipTurn(ThreadData *threadData);
+
+/**
+ * Sends an array of pawns for the active player to choose from
+ * @param data
+ * @param choices array of pawns to be sent
+ * @param choiceCount size of the array
+ */
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount);
+
+/**
+ * Receives a choice from the active player
+ * @param data
+ * @return players' choice - one of '1', '2', '3', '4'
+ */
 char receiveChoice(ThreadData *data);
-Pawn* getPawnChoice(ThreadData *data, int die);
+
+/**
+ * Calculates which pawns can the player move, then sends these choices to the player.
+ * After a response from the player was received, returns the chosen pawn*
+ * @param data
+ * @param die what did the player roll
+ * @return a pawn* that the player chose, null if player couldn't move with any of his pawns
+ */
+Pawn* handlePawnChoice(ThreadData *data, int die);
+
+/**
+ * Sends redraw code along with player data to all players
+ * @param data
+ */
 void sendRedraw(ThreadData *data);
+
+/**
+ * Checks
+ * @param args
+ * @return
+ */
 void* gameThread(void *args);
 void* playerThread(void *args);
 

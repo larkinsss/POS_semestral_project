@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 enum Player { PLAYER_1, PLAYER_2, PLAYER_3, PLAYER_4 };
-enum Command { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, REDRAW };
+enum Code { START_GAME, END_GAME, DICE_ROLL, SKIP_TURN, AVAILABLE_PAWNS, REDRAW };
 enum PawnArea { AREA_START, AREA_END, AREA_GAME };
 
 const int GAME_TILE_COUNT = 40;
@@ -16,7 +16,7 @@ const int PAWN_COUNT = 4;
  * Descriptor - describes the type of next network write
  */
 typedef struct descriptor {
-    enum Command code;
+    enum Code code;
     size_t size;
 } Descriptor;
 

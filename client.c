@@ -9,13 +9,15 @@
 #include <curses.h>
 #include "client.h"
 
-bool receive(int socketfd, void* buffer, size_t size) {
+void receive(int socketfd, void* buffer, size_t size)
+{
     if (read(socketfd, buffer, size) < 0) {
-        clearPrintw(0, 21, "Error on receive(int socketfd, void* buffer, size_t size)");
+        mvprintw(21, 0, "Error on receive(int socketfd, void* buffer, size_t size)");
     }
 }
 
-void clearLine(int x, int y) {
+void clearLine(int x, int y)
+{
     move(y,x);
     clrtoeol();
 }
@@ -25,12 +27,6 @@ void clearLines(int x, int y, int count)
     for (int i = 0; i < count; ++i) {
         clearLine(x, y + i);
     }
-}
-
-void clearPrintw(int x, int y, const char* str)
-{
-    clearLine(x, y);
-    mvprintw(y, x, str);
 }
 
 int movePrintSpacing(Position position, const char* string)
@@ -43,7 +39,8 @@ int getColor(enum Player player)
     return (int) player + 1;
 }
 
-void redrawBoard(int sockfd, size_t size) {
+void redrawBoard(int sockfd, size_t size)
+{
     PlayerData *data = (PlayerData *)malloc(size);
     receive(sockfd, data, size);
 
@@ -124,20 +121,20 @@ void handleDiceRoll(int sockfd, size_t size)
     int buffer = 0;
     receive(sockfd, &buffer, size);
 
-    char str[13] = { 0 };
-    sprintf(str, "You rolled %d", buffer);
-    clearPrintw(0, 13, str);
+    mvprintw(13, 0, "You rolled a %d", buffer);
 
     refresh();
 }
 
-void handleSkipTurn(){
+void handleSkipTurn()
+{
     mvprintw(19, 0, "No possible moves - turn skipped");
     refresh();
     sleep(1);
 }
 
-void handlePawns(int sockfd, size_t size) {
+void handlePawns(int sockfd, size_t size)
+{
     Pawn *possibleMoves = (Pawn *)malloc(size);
     int count = (int) (size / sizeof(Pawn));
 
