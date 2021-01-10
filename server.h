@@ -21,8 +21,6 @@
 #define thread_create pthread_create
 #define thread_join pthread_join
 
-static enum Player playerCounter = PLAYER_1;
-
 /**
  * ThreadData
  */
@@ -30,9 +28,9 @@ typedef struct thread_data {
     PlayerData* players;
     bool gameEnd;
     int lastRolledNum;
+    enum Player playerCounter;
 
     int* clSockFD;
-    int svSockFD;
 
     Mutex* mutex;
     Cond* wakeServer;

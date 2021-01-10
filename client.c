@@ -130,7 +130,7 @@ void handleSkipTurn()
 {
     mvprintw(19, 0, "No possible moves - turn skipped");
     refresh();
-    sleep(1);
+    //sleep(1);
 }
 
 void handlePawns(int sockfd, size_t size)

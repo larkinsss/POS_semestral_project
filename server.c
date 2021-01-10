@@ -62,6 +62,7 @@ void nextPlayer(PlayerData* playerData)
     playerData->activePlayer = (playerData->activePlayer + 1) % playerData->count;
 }
 
+// TODO remove
 void previousPlayer(PlayerData* playerData)
 {
     playerData->activePlayer = (playerData->activePlayer + playerData->count - 1) % playerData->count;
@@ -105,11 +106,16 @@ bool checkGameEnd(PlayerData* playerData)
 
 void sendDiceRoll(ThreadData *data, int rolledNum)
 {
-    Descriptor descriptor = { DICE_ROLL, sizeof(int) };
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) { DICE_ROLL, sizeof(int) };
 
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
-    writeToActivePlayer(data, &rolledNum, descriptor.size);
+    int num;
+    memset(&num, 0, sizeof(int));
+    num = rolledNum;
+    writeToActivePlayer(data, &num, descriptor.size);
 
     printf("Sent to Player %d, rolled %d\n", data->players->activePlayer, rolledNum);
     //sleep(1); // TODO removing sometimes breaks it
@@ -117,7 +123,9 @@ void sendDiceRoll(ThreadData *data, int rolledNum)
 
 void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
 {
-    Descriptor descriptor = {AVAILABLE_PAWNS, choiceCount * sizeof(Pawn)};
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) {AVAILABLE_PAWNS, choiceCount * sizeof(Pawn)};
 
     writeToActivePlayer(data, &descriptor, sizeof(Descriptor));
 
@@ -126,17 +134,21 @@ void sendChoice(ThreadData *data, Pawn *choices, int choiceCount)
 
 void sendSkipTurn(ThreadData *threadData)
 {
-    Descriptor descriptor = {SKIP_TURN, 0};
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) {SKIP_TURN, 0};
 
     writeToActivePlayer(threadData, &descriptor, sizeof(Descriptor));
 
-    sleep(1); // TODO removing sometimes breaks it
+    //sleep(1); // TODO removing sometimes breaks it
 }
 
 void sendGameStart(ThreadData *data)
 {
     int n;
-    Descriptor descriptor = {START_GAME, sizeof(enum Player)};
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) {START_GAME, sizeof(enum Player)};
 
     for (enum Player i = PLAYER_1; i < data->players->count; ++i) {
 
@@ -156,7 +168,9 @@ void sendGameEnd(ThreadData *data, enum Player winner)
 {
     int n;
     int win = winner;   // Didn't work with sending just 'winner'
-    Descriptor  descriptor = { END_GAME, sizeof(win) };
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) { END_GAME, sizeof(win) };
 
     for (int i = 0; i < data->players->count; ++i) {
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
@@ -174,7 +188,9 @@ void sendGameEnd(ThreadData *data, enum Player winner)
 void sendRedraw(ThreadData *data)
 {
     int n;
-    Descriptor descriptor = {REDRAW, sizeof(PlayerData)};
+    Descriptor descriptor;
+    memset(&descriptor, 0, sizeof(Descriptor));
+    descriptor = (Descriptor) {REDRAW, sizeof(PlayerData)};
 
     for (int i = 0; i < data->players->count; ++i) {
         n = write(data->clSockFD[i], &descriptor, sizeof(Descriptor));
@@ -352,7 +368,7 @@ Pawn* handlePawnChoice(ThreadData *data, int die)
 char receiveChoice(ThreadData *data)
 {
     int n;
-    char choice = '\0';
+    char choice = 'X';
 
     printf("Waiting for choice from player %d\n", data->players->activePlayer);
     n = read(data->clSockFD[data->players->activePlayer], &choice, sizeof(choice));
@@ -421,8 +437,8 @@ void* gameThread(void *args)
     sendRedraw(data);
     data->players->activePlayer = PLAYER_1;
 
-    mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
+    mutex_unlock(data->mutex);
 
     while (!checkGameEnd(data->players)) {
         mutex_lock(data->mutex);
@@ -430,22 +446,21 @@ void* gameThread(void *args)
         cond_wait(data->wakeServer, data->mutex);
 
         // If player rolled a six, he goes again
-        if (data->lastRolledNum != 6)
+        if (data->lastRolledNum != 6 && !checkGameEnd(data->players))
         {
             nextPlayer(data->players);
         }
 
-        mutex_unlock(data->mutex);
         cond_broadcast(data->wakeClient);
+        mutex_unlock(data->mutex);
     }
 
-    previousPlayer(data->players);
     sendGameEnd(data, data->players->activePlayer);
     
     mutex_lock(data->mutex);
     data->gameEnd = true;
-    mutex_unlock(data->mutex);
     cond_broadcast(data->wakeClient);
+    mutex_unlock(data->mutex);
 
     printf("GameThread end\n");
     return null;
@@ -454,7 +469,11 @@ void* gameThread(void *args)
 void* playerThread(void *args)
 {
     ThreadData *data = (ThreadData *) args;
-    enum Player id = playerCounter++;
+
+    mutex_lock(data->mutex);
+    enum Player id = data->playerCounter++;
+    mutex_unlock(data->mutex);
+
     printf("PlayerTread %d start!\n", id);
     bool goToSleep = false;
     Pawn* chosenPawn;
@@ -465,11 +484,11 @@ void* playerThread(void *args)
         while(goToSleep || data->players->activePlayer != id) {
             cond_wait(data->wakeClient, data->mutex);
             goToSleep = false;
-            
+
             // If the game ended, stop this thread
             if (data->gameEnd) {
-                mutex_unlock(data->mutex);
                 cond_signal(data->wakeServer);
+                mutex_unlock(data->mutex);
                 return null;
             }
         }
@@ -482,12 +501,13 @@ void* playerThread(void *args)
             sendSkipTurn(data);
         } else {
             actOnPawn(chosenPawn, data->players, data->lastRolledNum);
+            sendRedraw(data);
         }
-        sendRedraw(data);
 
         goToSleep = true;
-        mutex_unlock(data->mutex);
+        printf("PlayerThread %d sleep\n", id);
         cond_signal(data->wakeServer);
+        mutex_unlock(data->mutex);
     }
 
     printf("PlayerThread %d end\n", id);
@@ -516,6 +536,7 @@ int main(int argc, char *argv[])
 
     // Variable gameInit
     PlayerData playerData;
+    memset(&playerData, 0, sizeof(playerData));
     int svSockFD;
     struct sockaddr_in serv_addr;
 
@@ -559,9 +580,11 @@ int main(int argc, char *argv[])
     int* clSockFD = (int*) calloc(playerCount, sizeof(int));
 
     ThreadData thData = (ThreadData) {
-            &playerData, false, 0,
+            &playerData,
+            false,
+            0,
+            PLAYER_1,
             clSockFD,
-            svSockFD,
             &mutex, &wakeServer, &wakeClient
     };
 
