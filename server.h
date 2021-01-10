@@ -214,11 +214,6 @@ Pawn* handlePawnChoice(ThreadData *data, int die);
  */
 void sendRedraw(ThreadData *data);
 
-/**
- * Checks
- * @param args
- * @return
- */
 void* gameThread(void *args);
 void* playerThread(void *args);
 
