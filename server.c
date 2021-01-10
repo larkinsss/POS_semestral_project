@@ -14,6 +14,7 @@
 
 int rollDie()
 {
+    // Hello
     return 1 + rand() % 6;
 }
 
